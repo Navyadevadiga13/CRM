@@ -28,21 +28,27 @@ const studentSchema = new mongoose.Schema(
       match: [/^[6-9]\d{9}$/, "Please enter a valid phone number"],
     },
 
-    interestedCountry: {
-      type: String,
-      default: null,
-      trim: true,
-    },
+   studyPreference: {
+  type: String,
+  required: true,
+  trim: true,
+},
 
-    region: {
-      type: String,
-      enum: [
-        "North India",
-        "South India",
-        "Nepal Region",
-      ],
-      required: true,
-    },
+preferredCountry: {
+  type: String,
+  default: "",
+  trim: true,
+},
+
+   region: {
+  type: String,
+  enum: [
+    "North India",
+    "South India",
+    "Nepal Region",
+  ],
+  default: null,
+},
 
     city: {
       type: String,
@@ -62,11 +68,11 @@ const studentSchema = new mongoose.Schema(
       default: null,
     },
 
-    leadStatus: {
-      type: String,
-      enum: ["Cold", "Warm", "Hot", "Converted"],
-      default: "Cold",
-    },
+  leadStatus: {
+  type: String,
+  enum: ["Cold", "Warm", "Hot"],
+  default: "Cold",
+},
 
     remarks: {
       type: String,
@@ -105,8 +111,9 @@ const studentSchema = new mongoose.Schema(
 
 studentSchema.index({ phone: 1 });
 studentSchema.index({ email: 1 });
-studentSchema.index({ leadStatus: 1 });
 studentSchema.index({ city: 1 });
 studentSchema.index({ region: 1 });
+studentSchema.index({ leadStatus: 1 });
+studentSchema.index({ leadStatus: 1, city: 1 });
 
 export default mongoose.model("Student", studentSchema);

@@ -1,19 +1,6 @@
 import mongoose from "mongoose";
 
-/*
-|--------------------------------------------------------------------------
-| Role hierarchy (for reference — enforced in controllers)
-|--------------------------------------------------------------------------
-| super_admin  -> full access to everything
-| co_admin     -> full access to everything
-| regional_head-> tied to ONE region, can create/view "partner" + "city_head"
-|                 that belong to that region
-| partner      -> tied to MANY cities, can create/view "city_head"
-|                 that belong to their own cities
-| city_head    -> tied to ONE city, can only update lead status
-| data_entry   -> no management rights, only creates leads
-|--------------------------------------------------------------------------
-*/
+
 
 const VALID_REGIONS = ["North India", "South India", "Nepal Region"];
 
@@ -95,24 +82,7 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
-    // ---- Security / brute-force protection fields (kept out of normal queries) ----
-    loginAttempts: {
-      type: Number,
-      default: 0,
-      select: false,
-    },
 
-    lockUntil: {
-      type: Number,
-      default: null,
-      select: false,
-    },
-
-    passwordChangedAt: {
-      type: Date,
-      default: null,
-      select: false,
-    },
 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -135,6 +105,7 @@ const userSchema = new mongoose.Schema(
 userSchema.index({ role: 1 });
 userSchema.index({ region: 1 });
 userSchema.index({ city: 1 });
+userSchema.index({ role: 1, region: 1 });
 
 export const REGIONS = VALID_REGIONS;
 

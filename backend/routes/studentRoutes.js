@@ -135,7 +135,8 @@ router.put(
     "co_admin",
     "regional_head",
     "partner",
-    "city_head"
+    "city_head",
+    "data_entry"
   ),
   updateStudent
 );
@@ -152,8 +153,6 @@ router.patch(
   authorize(
     "super_admin",
     "co_admin",
-    "regional_head",
-    "partner",
     "city_head"
   ),
   updateLeadStatus

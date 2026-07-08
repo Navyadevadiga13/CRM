@@ -7,33 +7,41 @@ export const getDashboard = async (req, res) => {
 
     let studentFilter = {};
 
-    // Role Based Dashboard
-    if (user.role === "partner") {
-      studentFilter.assignedPartner = user._id;
-    }
+  if (user.role === "data_entry") {
+  studentFilter.createdBy = user._id;
+}
+if (user.role === "regional_head") {
+  studentFilter.region = user.region;
+}
 
-    if (user.role === "city_head") {
-      studentFilter.assignedCityHead = user._id;
-    }
+if (user.role === "partner") {
+  studentFilter.assignedPartner = user._id;
+}
 
-    const [
-      totalStudents,
-      coldLeads,
-      warmLeads,
-      hotLeads,
-      convertedLeads,
-      activeUsers,
-      inactiveUsers,
-      recentStudents,
-      todayFollowups,
-    ] = await Promise.all([
+if (user.role === "city_head") {
+  studentFilter.assignedCityHead = user._id;
+}
+
+   const [
+  totalLeads,
+  coldLeads,
+  warmLeads,
+  hotLeads,
+  partners,
+  cityHeads,
+  dataEntries,
+  activeUsers,
+  inactiveUsers,
+  recentLeads,
+  todayFollowups,
+] = await Promise.all([
 
       Student.countDocuments(studentFilter),
 
-      Student.countDocuments({
-        ...studentFilter,
-        leadStatus: "Cold",
-      }),
+    Student.countDocuments({
+  ...studentFilter,
+  leadStatus: "Cold",
+}),
 
       Student.countDocuments({
         ...studentFilter,
@@ -45,10 +53,17 @@ export const getDashboard = async (req, res) => {
         leadStatus: "Hot",
       }),
 
-      Student.countDocuments({
-        ...studentFilter,
-        leadStatus: "Converted",
-      }),
+   User.countDocuments({
+  role: "partner",
+}),
+
+User.countDocuments({
+  role: "city_head",
+}),
+
+User.countDocuments({
+  role: "data_entry",
+}),
 
       User.countDocuments({
         isActive: true,
@@ -62,7 +77,7 @@ export const getDashboard = async (req, res) => {
         .sort({ createdAt: -1 })
         .limit(5)
         .select(
-          "name phone interestedCountry leadStatus createdAt"
+      "name phone studyPreference preferredCountry leadStatus createdAt"
         ),
 
       Student.find({
@@ -87,20 +102,31 @@ export const getDashboard = async (req, res) => {
     res.status(200).json({
       success: true,
 
-      dashboard: {
-        totalStudents,
-        coldLeads,
-        warmLeads,
-        hotLeads,
-        convertedLeads,
+     dashboard:{
 
-        activeUsers,
-        inactiveUsers,
+totalLeads,
 
-        recentStudents,
+coldLeads,
 
-        todayFollowups,
-      },
+warmLeads,
+
+hotLeads,
+
+partners,
+
+cityHeads,
+
+dataEntries,
+
+activeUsers,
+
+inactiveUsers,
+
+recentLeads,
+
+todayFollowups
+
+}
     });
   } catch (error) {
     console.error("Dashboard Error:", error);

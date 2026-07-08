@@ -1,240 +1,126 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { deleteUser, getUsers, toggleUserStatus } from "../../api/userApi";
 
-import DashboardLayout from "../../layouts/DashboardLayout";
-import {
-  getUsers,
-  deleteUser,
-  toggleUserStatus,
-} from "../../api/userApi";
-
-export default function UsersPage() {
+const UsersPage = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadUsers();
-  }, []);
+  const [message, setMessage] = useState("");
 
   const loadUsers = async () => {
+    setLoading(true);
     try {
-      const data = await getUsers();
-      setUsers(data.users);
-    } catch (error) {
-      console.error(error);
+      const { data } = await getUsers();
+      setUsers(data.users || []);
+    } catch {
+      setUsers([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    const confirmDelete = window.confirm(
-      "Delete this user?"
-    );
+  useEffect(() => {
+    loadUsers();
+  }, []);
 
-    if (!confirmDelete) return;
-
+  const handleToggleStatus = async (id: string) => {
     try {
-      await deleteUser(id);
-
-      alert("User deleted successfully.");
-
+      await toggleUserStatus(id);
+      setMessage("User status updated.");
       loadUsers();
-    } catch (error: any) {
-      alert(
-        error?.response?.data?.message ||
-          "Unable to delete user."
-      );
+    } catch {
+      setMessage("Unable to update user status.");
     }
   };
 
-  const handleStatus = async (id: string) => {
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Delete this user?")) return;
     try {
-      await toggleUserStatus(id);
-
+      await deleteUser(id);
+      setMessage("User deleted successfully.");
       loadUsers();
-    } catch (error: any) {
-      alert(
-        error?.response?.data?.message ||
-          "Unable to update status."
-      );
+    } catch {
+      setMessage("Unable to delete user.");
     }
   };
 
   return (
-    <DashboardLayout>
-
-      <div className="mb-8 flex items-center justify-between">
-
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-
-          <h1 className="text-3xl font-bold">
-            Users
-          </h1>
-
-          <p className="text-slate-500">
-            Manage CRM Users
-          </p>
-
+          <h1 className="text-2xl font-semibold text-slate-900">Users</h1>
+          <p className="text-sm text-slate-500">Manage staff and role-based access.</p>
         </div>
-
-        <Link
-          to="/users/create"
-          className="rounded-lg bg-blue-600 px-5 py-3 text-white hover:bg-blue-700"
-        >
-          + Create User
+        <Link to="/users/create" className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700">
+          Create role
         </Link>
-
       </div>
 
-      <div className="overflow-hidden rounded-xl border bg-white shadow">
+      {message ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+          {message}
+        </div>
+      ) : null}
 
-        <table className="min-w-full">
-
-          <thead className="bg-slate-100">
-
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <table className="min-w-full divide-y divide-slate-200 text-sm">
+          <thead className="bg-slate-50">
             <tr>
-
-              <th className="px-6 py-4 text-left">
-                Name
-              </th>
-
-              <th className="px-6 py-4 text-left">
-                Email
-              </th>
-
-              <th className="px-6 py-4 text-left">
-                Phone
-              </th>
-
-              <th className="px-6 py-4 text-left">
-                Role
-              </th>
-
-              <th className="px-6 py-4 text-left">
-                Status
-              </th>
-
-              <th className="px-6 py-4 text-center">
-                Actions
-              </th>
-
+              <th className="px-4 py-3 text-left font-semibold text-slate-700">Name</th>
+              <th className="px-4 py-3 text-left font-semibold text-slate-700">Email</th>
+              <th className="px-4 py-3 text-left font-semibold text-slate-700">Role</th>
+              <th className="px-4 py-3 text-left font-semibold text-slate-700">Status</th>
+              <th className="px-4 py-3 text-left font-semibold text-slate-700">Actions</th>
             </tr>
-
           </thead>
-
-          <tbody>
-
+          <tbody className="divide-y divide-slate-100">
             {loading ? (
-
               <tr>
-
-                <td
-                  colSpan={6}
-                  className="p-10 text-center"
-                >
-                  Loading...
+                <td colSpan={5} className="px-4 py-6 text-center text-slate-500">
+                  Loading users...
                 </td>
-
               </tr>
-
             ) : users.length === 0 ? (
-
               <tr>
-
-                <td
-                  colSpan={6}
-                  className="p-10 text-center"
-                >
-                  No Users Found
+                <td colSpan={5} className="px-4 py-6 text-center text-slate-500">
+                  No users available.
                 </td>
-
               </tr>
-
             ) : (
-
               users.map((user) => (
-
-                <tr
-                  key={user._id}
-                  className="border-t"
-                >
-
-                  <td className="px-6 py-4">
-                    {user.name}
+                <tr key={user._id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3 font-medium text-slate-800">{user.name}</td>
+                  <td className="px-4 py-3 text-slate-600">{user.email}</td>
+                  <td className="px-4 py-3 text-slate-600">{user.role?.replace(/_/g, " ")}</td>
+                  <td className="px-4 py-3">
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${user.isActive ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
+                      {user.isActive ? "Active" : "Inactive"}
+                    </span>
                   </td>
-
-                  <td className="px-6 py-4">
-                    {user.email}
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-2">
+                      <Link to={`/users/edit/${user._id}`} className="text-sm font-medium text-amber-600">
+                        Edit
+                      </Link>
+                      <button onClick={() => handleToggleStatus(user._id)} className="flex items-center gap-2 text-sm font-medium text-cyan-600" aria-label={`Toggle ${user.name} status`}>
+                        <span className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${user.isActive ? "bg-emerald-600" : "bg-slate-300"}`}>
+                          <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${user.isActive ? "translate-x-5" : "translate-x-1"}`} />
+                        </span>
+                      </button>
+                      <button onClick={() => handleDelete(user._id)} className="text-sm font-medium text-rose-600">
+                        Delete
+                      </button>
+                    </div>
                   </td>
-
-                  <td className="px-6 py-4">
-                    {user.phone}
-                  </td>
-
-                  <td className="px-6 py-4 capitalize">
-                    {user.role.replaceAll("_", " ")}
-                  </td>
-
-                  <td className="px-6 py-4">
-
-                    {user.isActive ? (
-
-                      <span className="rounded bg-green-100 px-3 py-1 text-green-700">
-                        Active
-                      </span>
-
-                    ) : (
-
-                      <span className="rounded bg-red-100 px-3 py-1 text-red-700">
-                        Inactive
-                      </span>
-
-                    )}
-
-                  </td>
-
-                  <td className="space-x-2 px-6 py-4 text-center">
-
-                    <Link
-                      to={`/users/edit/${user._id}`}
-                      className="rounded bg-blue-500 px-3 py-2 text-white"
-                    >
-                      Edit
-                    </Link>
-
-                    <button
-                      onClick={() =>
-                        handleStatus(user._id)
-                      }
-                      className="rounded bg-yellow-500 px-3 py-2 text-white"
-                    >
-                      Status
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        handleDelete(user._id)
-                      }
-                      className="rounded bg-red-500 px-3 py-2 text-white"
-                    >
-                      Delete
-                    </button>
-
-                  </td>
-
                 </tr>
-
               ))
-
             )}
-
           </tbody>
-
         </table>
-
       </div>
-
-    </DashboardLayout>
+    </div>
   );
-}
+};
+
+export default UsersPage;
+

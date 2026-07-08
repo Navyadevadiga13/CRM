@@ -41,7 +41,9 @@ router.get(
   protect,
   authorize(
     "super_admin",
-    "co_admin"
+    "co_admin",
+    "regional_head",
+    "partner"
   ),
   getUsers
 );

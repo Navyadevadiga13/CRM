@@ -11,8 +11,9 @@ const VALID_STATUS = [
   "Cold",
   "Warm",
   "Hot",
-  "Converted",
 ];
+
+const VALID_STUDY_PREFERENCES = ["Study in India", "Study Abroad"];
 
 const isSafeString = (value) =>
   typeof value === "string" &&
@@ -23,6 +24,9 @@ const isValidEmail = (email) =>
 
 const isValidPhone = (phone) =>
   /^[6-9]\d{9}$/.test(phone);
+
+const isValidStudyPreference = (value) =>
+  VALID_STUDY_PREFERENCES.includes(value);
 
 /*
 |--------------------------------------------------------------------------
@@ -36,18 +40,20 @@ export const createStudent = async (req, res) => {
       name,
       email,
       phone,
-      interestedCountry,
+      studyPreference,
+      preferredCountry,
       region,
       city,
       remarks,
       followUpDate,
     } = req.body;
 
+    // Required Fields
     if (
       !isSafeString(name) ||
       !isSafeString(email) ||
       !isSafeString(phone) ||
-      !isSafeString(region) ||
+      !isSafeString(studyPreference) ||
       !isSafeString(city)
     ) {
       return res.status(400).json({
@@ -56,6 +62,7 @@ export const createStudent = async (req, res) => {
       });
     }
 
+    // Email Validation
     if (!isValidEmail(email)) {
       return res.status(400).json({
         success: false,
@@ -63,6 +70,7 @@ export const createStudent = async (req, res) => {
       });
     }
 
+    // Phone Validation
     if (!isValidPhone(phone)) {
       return res.status(400).json({
         success: false,
@@ -70,13 +78,39 @@ export const createStudent = async (req, res) => {
       });
     }
 
-    if (!VALID_REGIONS.includes(region)) {
+    // Study Preference Validation
+    if (!isValidStudyPreference(studyPreference.trim())) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid study preference.",
+      });
+    }
+
+    // Region Validation
+    const trimmedRegion = region?.trim();
+
+    if (
+      trimmedRegion &&
+      !VALID_REGIONS.includes(trimmedRegion)
+    ) {
       return res.status(400).json({
         success: false,
         message: "Invalid region.",
       });
     }
 
+    // Follow-up Date Validation
+    if (
+      followUpDate &&
+      isNaN(new Date(followUpDate).getTime())
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid follow-up date.",
+      });
+    }
+
+    // Duplicate Check
     const existingStudent = await Student.findOne({
       $or: [
         {
@@ -91,42 +125,36 @@ export const createStudent = async (req, res) => {
     if (existingStudent) {
       return res.status(409).json({
         success: false,
-        message:
-          "Student already exists.",
+        message: "Student already exists.",
       });
     }
 
-    const student =
-      await Student.create({
-        name: name.trim(),
-        email: email.toLowerCase().trim(),
-        phone: phone.trim(),
-        interestedCountry:
-          interestedCountry || null,
-        region,
-        city: city.trim(),
-        remarks: remarks || "",
-        followUpDate:
-          followUpDate || null,
-        createdBy: req.user._id,
-      });
+    // Create Student
+    const student = await Student.create({
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      phone: phone.trim(),
+      studyPreference: studyPreference.trim(),
+      preferredCountry: preferredCountry?.trim() || "",
+      region: trimmedRegion || null,
+      city: city.trim(),
+      remarks: remarks?.trim() || "",
+      followUpDate: followUpDate || null,
+      createdBy: req.user._id,
+    });
 
     res.status(201).json({
       success: true,
-      message:
-        "Student created successfully.",
+      message: "Student created successfully.",
       student,
     });
+
   } catch (error) {
-    console.error(
-      "createStudent error:",
-      error
-    );
+    console.error("createStudent error:", error);
 
     res.status(500).json({
       success: false,
-      message:
-        "Something went wrong.",
+      message: "Something went wrong.",
     });
   }
 };
@@ -137,95 +165,81 @@ export const createStudent = async (req, res) => {
 |--------------------------------------------------------------------------
 */
 
-export const getStudents =
-  async (req, res) => {
-    try {
-      const page = Math.max(
-        parseInt(req.query.page) || 1,
+export const getStudents = async (req, res) => {
+  try {
+    const page = Math.max(
+      parseInt(req.query.page) || 1,
+      1
+    );
+
+    const limit = Math.min(
+      Math.max(
+        parseInt(req.query.limit) || 20,
         1
-      );
+      ),
+      100
+    );
 
-      const limit = Math.min(
-        Math.max(
-          parseInt(req.query.limit) || 20,
-          1
-        ),
-        100
-      );
+    const skip = (page - 1) * limit;
 
-      const skip =
-        (page - 1) * limit;
+    const filter = {};
 
-      const filter = {};
-
-      if (req.query.status) {
-        filter.leadStatus =
-          req.query.status;
-      }
-
-      if (req.query.region) {
-        filter.region =
-          req.query.region;
-      }
-
-      if (req.user.role === "partner") {
-        filter.assignedPartner =
-          req.user._id;
-      }
-
-      if (
-        req.user.role === "city_head"
-      ) {
-        filter.assignedCityHead =
-          req.user._id;
-      }
-
-      const [
-        students,
-        total,
-      ] = await Promise.all([
-        Student.find(filter)
-          .populate(
-            "assignedPartner",
-            "name"
-          )
-          .populate(
-            "assignedCityHead",
-            "name"
-          )
-          .skip(skip)
-          .limit(limit)
-          .sort({
-            createdAt: -1,
-          }),
-
-        Student.countDocuments(
-          filter
-        ),
-      ]);
-
-      res.status(200).json({
-        success: true,
-        students,
-        total,
-        page,
-        totalPages: Math.ceil(
-          total / limit
-        ),
-      });
-    } catch (error) {
-      console.error(
-        "getStudents error:",
-        error
-      );
-
-      res.status(500).json({
-        success: false,
-        message:
-          "Something went wrong.",
-      });
+    // Filters
+    if (req.query.status) {
+      filter.leadStatus = req.query.status;
     }
-  };
+
+    if (req.query.region) {
+      filter.region = req.query.region;
+    }
+
+    // Role-based access
+    if (req.user.role === "regional_head") {
+      filter.region = req.user.region;
+    }
+
+    if (req.user.role === "partner") {
+      filter.assignedPartner = req.user._id;
+    }
+
+    if (req.user.role === "city_head") {
+      filter.city = req.user.city;
+      filter.assignedCityHead = req.user._id;
+    }
+
+    if (req.user.role === "data_entry") {
+      filter.createdBy = req.user._id;
+    }
+
+    const [students, total] = await Promise.all([
+      Student.find(filter)
+        .populate("assignedPartner", "name email")
+        .populate("assignedCityHead", "name email")
+        .populate("createdBy", "name role")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+
+      Student.countDocuments(filter),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      students,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    });
+
+  } catch (error) {
+    console.error("getStudents error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Something went wrong.",
+    });
+  }
+};
 
 /*
 |--------------------------------------------------------------------------
@@ -233,48 +247,80 @@ export const getStudents =
 |--------------------------------------------------------------------------
 */
 
-export const getStudentById =
-  async (req, res) => {
-    try {
-      const student =
-        await Student.findById(
-          req.params.id
-        )
-          .populate(
-            "assignedPartner",
-            "name email"
-          )
-          .populate(
-            "assignedCityHead",
-            "name email"
-          );
+export const getStudentById = async (req, res) => {
+  try {
+    const student = await Student.findById(req.params.id)
+      .populate("assignedPartner", "name email")
+      .populate("assignedCityHead", "name email")
+      .populate("createdBy", "name role");
 
-      if (!student) {
-        return res.status(404).json({
-          success: false,
-          message:
-            "Student not found.",
-        });
-      }
-
-      res.status(200).json({
-        success: true,
-        student,
-      });
-    } catch (error) {
-      console.error(
-        "getStudentById error:",
-        error
-      );
-
-      res.status(500).json({
+    if (!student) {
+      return res.status(404).json({
         success: false,
-        message:
-          "Something went wrong.",
+        message: "Student not found.",
       });
     }
-  };
 
+    // Regional Head - only own region
+    if (
+      req.user.role === "regional_head" &&
+      student.region !== req.user.region
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied.",
+      });
+    }
+
+    // Partner - only assigned leads
+    if (
+      req.user.role === "partner" &&
+      student.assignedPartner &&
+      student.assignedPartner._id.toString() !== req.user._id.toString()
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied.",
+      });
+    }
+
+    // City Head - only leads for their assigned city
+    if (
+      req.user.role === "city_head" &&
+      student.city !== req.user.city
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied.",
+      });
+    }
+
+    // Data Entry - only leads created by them
+    if (
+      req.user.role === "data_entry" &&
+      student.createdBy &&
+      student.createdBy._id.toString() !== req.user._id.toString()
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied.",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      student,
+    });
+
+  } catch (error) {
+    console.error("getStudentById error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Something went wrong.",
+    });
+  }
+};
   /*
 |--------------------------------------------------------------------------
 | Update Student
@@ -287,7 +333,8 @@ export const updateStudent = async (req, res) => {
       name,
       email,
       phone,
-      interestedCountry,
+      studyPreference,
+      preferredCountry,
       region,
       city,
       remarks,
@@ -303,8 +350,12 @@ export const updateStudent = async (req, res) => {
       });
     }
 
-    if (name) student.name = name.trim();
+    // Name
+    if (name) {
+      student.name = name.trim();
+    }
 
+    // Email
     if (email) {
       if (!isValidEmail(email)) {
         return res.status(400).json({
@@ -313,9 +364,22 @@ export const updateStudent = async (req, res) => {
         });
       }
 
+      const existingEmail = await Student.findOne({
+        email: email.toLowerCase().trim(),
+        _id: { $ne: student._id },
+      });
+
+      if (existingEmail) {
+        return res.status(409).json({
+          success: false,
+          message: "Email already exists.",
+        });
+      }
+
       student.email = email.toLowerCase().trim();
     }
 
+    // Phone
     if (phone) {
       if (!isValidPhone(phone)) {
         return res.status(400).json({
@@ -324,9 +388,22 @@ export const updateStudent = async (req, res) => {
         });
       }
 
+      const existingPhone = await Student.findOne({
+        phone: phone.trim(),
+        _id: { $ne: student._id },
+      });
+
+      if (existingPhone) {
+        return res.status(409).json({
+          success: false,
+          message: "Phone number already exists.",
+        });
+      }
+
       student.phone = phone.trim();
     }
 
+    // Region
     if (region) {
       if (!VALID_REGIONS.includes(region)) {
         return res.status(400).json({
@@ -335,19 +412,46 @@ export const updateStudent = async (req, res) => {
         });
       }
 
-      student.region = region;
+      student.region = region.trim();
     }
 
-    if (city) student.city = city.trim();
+    // City
+    if (city) {
+      student.city = city.trim();
+    }
 
-    if (interestedCountry !== undefined)
-      student.interestedCountry = interestedCountry;
+    // Study Preference
+    if (studyPreference !== undefined) {
+      if (!isValidStudyPreference(studyPreference.trim())) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid study preference.",
+        });
+      }
+      student.studyPreference = studyPreference.trim();
+    }
 
-    if (remarks !== undefined)
-      student.remarks = remarks;
+    // Preferred Country
+    if (preferredCountry !== undefined) {
+      student.preferredCountry = preferredCountry.trim();
+    }
 
-    if (followUpDate !== undefined)
+    // Remarks
+    if (remarks !== undefined) {
+      student.remarks = remarks.trim();
+    }
+
+    // Follow-up Date
+    if (followUpDate !== undefined) {
+      if (isNaN(new Date(followUpDate).getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid follow-up date.",
+        });
+      }
+
       student.followUpDate = followUpDate;
+    }
 
     student.updatedBy = req.user._id;
 
@@ -358,6 +462,7 @@ export const updateStudent = async (req, res) => {
       message: "Student updated successfully.",
       student,
     });
+
   } catch (error) {
     console.error("updateStudent error:", error);
 
@@ -378,6 +483,16 @@ export const updateLeadStatus = async (req, res) => {
   try {
     const { leadStatus } = req.body;
 
+    // Only City Head can update lead status
+  if (
+  !["super_admin", "co_admin", "city_head"].includes(req.user.role)
+) {
+  return res.status(403).json({
+    success: false,
+    message: "You are not authorized to update lead status.",
+  });
+}
+
     if (!VALID_STATUS.includes(leadStatus)) {
       return res.status(400).json({
         success: false,
@@ -393,7 +508,15 @@ export const updateLeadStatus = async (req, res) => {
         message: "Student not found.",
       });
     }
-
+if (
+  req.user.role === "city_head" &&
+  student.assignedCityHead?.toString() !== req.user._id.toString()
+) {
+  return res.status(403).json({
+    success: false,
+    message: "You can only update leads assigned to you.",
+  });
+}
     student.leadStatus = leadStatus;
     student.updatedBy = req.user._id;
 
@@ -439,6 +562,14 @@ export const assignPartner = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Student not found.",
+      });
+    }
+
+    // Partner must belong to the same region
+    if (partner.region !== student.region) {
+      return res.status(400).json({
+        success: false,
+        message: "Partner does not belong to this region.",
       });
     }
 
@@ -489,7 +620,12 @@ export const assignCityHead = async (req, res) => {
         message: "Student not found.",
       });
     }
-
+if (cityHead.city !== student.city) {
+  return res.status(400).json({
+    success: false,
+    message: "City Head does not belong to this city.",
+  });
+}
     student.assignedCityHead = cityHead._id;
     student.updatedBy = req.user._id;
 
@@ -520,6 +656,13 @@ export const updateRemarks = async (req, res) => {
   try {
     const { remarks } = req.body;
 
+    if (remarks !== undefined && typeof remarks !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Remarks must be a string.",
+      });
+    }
+
     const student = await Student.findById(req.params.id);
 
     if (!student) {
@@ -529,7 +672,7 @@ export const updateRemarks = async (req, res) => {
       });
     }
 
-    student.remarks = remarks || "";
+    student.remarks = remarks?.trim() || "";
     student.updatedBy = req.user._id;
 
     await student.save();
@@ -559,6 +702,20 @@ export const updateFollowUp = async (req, res) => {
   try {
     const { followUpDate } = req.body;
 
+    if (!followUpDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Follow-up date is required.",
+      });
+    }
+
+    if (isNaN(new Date(followUpDate).getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid follow-up date.",
+      });
+    }
+
     const student = await Student.findById(req.params.id);
 
     if (!student) {
@@ -578,6 +735,7 @@ export const updateFollowUp = async (req, res) => {
       message: "Follow-up date updated.",
       student,
     });
+
   } catch (error) {
     console.error(error);
 
@@ -596,6 +754,16 @@ export const updateFollowUp = async (req, res) => {
 
 export const toggleStudentStatus = async (req, res) => {
   try {
+
+    if (
+      !["super_admin", "co_admin", "regional_head"].includes(req.user.role)
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to update lead status.",
+      });
+    }
+
     const student = await Student.findById(req.params.id);
 
     if (!student) {
@@ -617,6 +785,7 @@ export const toggleStudentStatus = async (req, res) => {
       } successfully.`,
       student,
     });
+
   } catch (error) {
     console.error(error);
 
@@ -627,10 +796,20 @@ export const toggleStudentStatus = async (req, res) => {
   }
 };
 
-
 // Delete Lead
+
 export const deleteStudent = async (req, res) => {
   try {
+    // Only Super Admin, Co Admin and Regional Head can delete
+    if (
+      !["super_admin", "co_admin", "regional_head"].includes(req.user.role)
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to delete leads.",
+      });
+    }
+
     const student = await Student.findById(req.params.id);
 
     if (!student) {
@@ -646,6 +825,7 @@ export const deleteStudent = async (req, res) => {
       success: true,
       message: "Lead deleted successfully.",
     });
+
   } catch (error) {
     console.error("deleteStudent error:", error);
 
@@ -660,7 +840,7 @@ export const searchStudents = async (req, res) => {
   try {
     const { search = "" } = req.query;
 
-    const students = await Student.find({
+    const query = {
       $or: [
         {
           name: {
@@ -680,8 +860,48 @@ export const searchStudents = async (req, res) => {
             $options: "i",
           },
         },
+        {
+          city: {
+            $regex: search,
+            $options: "i",
+          },
+        },
+        {
+          studyPreference: {
+            $regex: search,
+            $options: "i",
+          },
+        },
+        {
+          preferredCountry: {
+            $regex: search,
+            $options: "i",
+          },
+        },
       ],
-    }).sort({ createdAt: -1 });
+    };
+
+    // Role-based filtering
+    if (req.user.role === "regional_head") {
+      query.region = req.user.region;
+    }
+
+    if (req.user.role === "partner") {
+      query.assignedPartner = req.user._id;
+    }
+
+    if (req.user.role === "city_head") {
+      query.assignedCityHead = req.user._id;
+    }
+
+    if (req.user.role === "data_entry") {
+      query.createdBy = req.user._id;
+    }
+
+    const students = await Student.find(query)
+      .populate("assignedPartner", "name")
+      .populate("assignedCityHead", "name")
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
@@ -702,7 +922,9 @@ export const filterStudents = async (req, res) => {
   try {
     const {
       leadStatus,
-      interestedCountry,
+      city,
+      studyPreference,
+      preferredCountry,
     } = req.query;
 
     const query = {};
@@ -711,12 +933,38 @@ export const filterStudents = async (req, res) => {
       query.leadStatus = leadStatus;
     }
 
-    if (interestedCountry) {
-      query.interestedCountry =
-        interestedCountry;
+    if (city) {
+      query.city = city;
+    }
+
+    if (studyPreference) {
+      query.studyPreference = studyPreference;
+    }
+
+    if (preferredCountry) {
+      query.preferredCountry = preferredCountry;
+    }
+
+    // Role-based filters
+    if (req.user.role === "regional_head") {
+      query.region = req.user.region;
+    }
+
+    if (req.user.role === "partner") {
+      query.assignedPartner = req.user._id;
+    }
+
+    if (req.user.role === "city_head") {
+      query.assignedCityHead = req.user._id;
+    }
+
+    if (req.user.role === "data_entry") {
+      query.createdBy = req.user._id;
     }
 
     const students = await Student.find(query)
+      .populate("assignedPartner", "name")
+      .populate("assignedCityHead", "name")
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -725,13 +973,11 @@ export const filterStudents = async (req, res) => {
     });
 
   } catch (error) {
-
     console.error(error);
 
     res.status(500).json({
       success: false,
       message: "Unable to filter students.",
     });
-
   }
 };

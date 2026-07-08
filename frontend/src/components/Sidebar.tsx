@@ -1,139 +1,62 @@
+import { BadgeCheck, LayoutDashboard, UserPlus2, Users, UserRoundPlus } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-import {
-  LayoutDashboard,
-  Users,
-  GraduationCap,
-  BarChart3,
-  Settings,
-} from "lucide-react";
-
-export default function Sidebar() {
+const Sidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
   const { user } = useAuth();
 
+  const links = [
+    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { to: "/students", label: "Lead pipeline", icon: UserRoundPlus },
+  ];
+
+  if (user?.role && !["city_head", "data_entry"].includes(user.role)) {
+    links.push({ to: "/users", label: "Team access", icon: Users });
+    links.push({ to: "/users/create", label: "Add role", icon: UserPlus2 });
+  }
+
+  const roleLabel = user?.role?.replace(/_/g, " ") || "User";
+
   return (
-    <aside className="flex h-screen w-64 flex-col bg-slate-900 text-white shadow-xl">
-
-      {/* Logo */}
-
-      <div className="border-b border-slate-800 p-6">
-
-        <h1 className="text-3xl font-bold tracking-wide text-blue-500">
-          WizX CRM
-        </h1>
-
-        <p className="mt-2 text-sm text-slate-400">
-          Overseas Education
-        </p>
-
+    <div className="flex h-screen flex-col overflow-y-auto bg-emerald-950 text-emerald-50">
+      <div className="border-b border-emerald-900/70 px-6 py-6">
+        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-700/70 bg-emerald-900/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-emerald-200">
+          <BadgeCheck size={14} />
+          EduCRM
+        </div>
+        <h1 className="mt-3 text-xl font-semibold">Overseas Education CRM</h1>
+        <p className="mt-2 text-sm text-emerald-200/80">From inquiry to admission, every lead stays visible.</p>
+        <div className="mt-3 inline-flex rounded-full bg-white/10 px-3 py-1 text-sm font-medium text-emerald-100">
+          {roleLabel}
+        </div>
       </div>
 
-      {/* Menu */}
-
-      <nav className="flex-1 space-y-2 p-4">
-
-        <NavLink
-          to="/dashboard"
-          className={({ isActive }) =>
-            `flex items-center gap-3 rounded-lg px-4 py-3 transition-all ${
-              isActive
-                ? "bg-blue-600 text-white shadow"
-                : "text-slate-300 hover:bg-slate-800 hover:text-white"
-            }`
-          }
-        >
-          <LayoutDashboard size={20} />
-          Dashboard
-        </NavLink>
-
-        <NavLink
-          to="/students"
-          className={({ isActive }) =>
-            `flex items-center gap-3 rounded-lg px-4 py-3 transition-all ${
-              isActive
-                ? "bg-blue-600 text-white shadow"
-                : "text-slate-300 hover:bg-slate-800 hover:text-white"
-            }`
-          }
-        >
-          <GraduationCap size={20} />
-          Leads
-        </NavLink>
-
-        {(user?.role === "super_admin" ||
-          user?.role === "co_admin") && (
+      <nav className="flex-1 space-y-2 px-4 py-6">
+        {links.map(({ to, label, icon: Icon }) => (
           <NavLink
-            to="/users"
+            key={to}
+            to={to}
+            onClick={onNavigate}
             className={({ isActive }) =>
-              `flex items-center gap-3 rounded-lg px-4 py-3 transition-all ${
-                isActive
-                  ? "bg-blue-600 text-white shadow"
-                  : "text-slate-300 hover:bg-slate-800 hover:text-white"
+              `flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition ${
+                isActive ? "bg-emerald-600/20 text-emerald-200" : "text-emerald-100/80 hover:bg-emerald-900 hover:text-white"
               }`
             }
           >
-            <Users size={20} />
-            Users
+            <Icon size={18} />
+            {label}
           </NavLink>
-        )}
-
-        <NavLink
-          to="/reports"
-          className={({ isActive }) =>
-            `flex items-center gap-3 rounded-lg px-4 py-3 transition-all ${
-              isActive
-                ? "bg-blue-600 text-white shadow"
-                : "text-slate-300 hover:bg-slate-800 hover:text-white"
-            }`
-          }
-        >
-          <BarChart3 size={20} />
-          Reports
-        </NavLink>
-
-        <NavLink
-          to="/settings"
-          className={({ isActive }) =>
-            `flex items-center gap-3 rounded-lg px-4 py-3 transition-all ${
-              isActive
-                ? "bg-blue-600 text-white shadow"
-                : "text-slate-300 hover:bg-slate-800 hover:text-white"
-            }`
-          }
-        >
-          <Settings size={20} />
-          Settings
-        </NavLink>
-
+        ))}
       </nav>
 
-      {/* Footer */}
-
-      <div className="border-t border-slate-800 p-5">
-
-        <div className="flex items-center gap-3">
-
-          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 text-lg font-bold">
-            {user?.name?.charAt(0).toUpperCase()}
-          </div>
-
-          <div>
-
-            <p className="font-medium">
-              {user?.name}
-            </p>
-
-            <p className="text-xs capitalize text-slate-400">
-              {user?.role?.replaceAll("_", " ")}
-            </p>
-
-          </div>
-
+      <div className="border-t border-emerald-900/70 p-4">
+        <div className="rounded-2xl border border-emerald-800/70 bg-emerald-900/60 p-4 text-sm text-emerald-100/80">
+          <p className="font-semibold text-emerald-100">Role-based workflow</p>
+          <p className="mt-1 text-xs leading-5">Regional heads assign partners, partners route city heads, and city heads move leads through follow-up and status updates.</p>
         </div>
-
       </div>
-
-    </aside>
+    </div>
   );
-}
+};
+
+export default Sidebar;

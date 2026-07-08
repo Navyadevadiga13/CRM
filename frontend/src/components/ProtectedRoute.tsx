@@ -1,18 +1,13 @@
+import type { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import type { PropsWithChildren } from "react";
+import Loader from "./Loader";
 
-export default function ProtectedRoute({
-  children,
-}: PropsWithChildren) {
-  const { isAuthenticated, loading } = useAuth();
+const ProtectedRoute = ({ children }: { children: ReactNode }) => {
+  const { isAuthenticated, isLoading } = useAuth();
 
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
-      </div>
-    );
+  if (isLoading) {
+    return <Loader />;
   }
 
   if (!isAuthenticated) {
@@ -20,4 +15,6 @@ export default function ProtectedRoute({
   }
 
   return <>{children}</>;
-}
+};
+
+export default ProtectedRoute;

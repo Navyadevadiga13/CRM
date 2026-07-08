@@ -1,178 +1,76 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
+import { getStudentById } from "../../api/studentApi";
 
-import DashboardLayout from "../../layouts/DashboardLayout";
-import { getStudent } from "../../api/studentApi";
-
-export default function LeadDetailsPage() {
+const LeadDetailsPage = () => {
   const { id } = useParams();
-
   const [student, setStudent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadStudent();
-  }, []);
+    const load = async () => {
+      if (!id) return;
+      try {
+        const { data } = await getStudentById(id);
+        setStudent(data.student);
+      } catch {
+        setStudent(null);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const loadStudent = async () => {
-    try {
-      const data = await getStudent(id!);
-      setStudent(data.student);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    load();
+  }, [id]);
 
   if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="p-10 text-center">
-          Loading...
-        </div>
-      </DashboardLayout>
-    );
+    return <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Loading lead details...</div>;
   }
 
   if (!student) {
-    return (
-      <DashboardLayout>
-        <div className="p-10 text-center">
-          Lead not found.
-        </div>
-      </DashboardLayout>
-    );
+    return <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">Lead not found.</div>;
   }
 
   return (
-    <DashboardLayout>
-
-      <div className="space-y-6">
-
-        <div className="rounded-xl bg-white p-8 shadow">
-
-          <div className="flex items-center justify-between">
-
-            <div>
-
-              <h1 className="text-3xl font-bold">
-                {student.name}
-              </h1>
-
-              <p className="text-slate-500">
-                Lead Details
-              </p>
-
-            </div>
-
-            <Link
-              to={`/students/edit/${student._id}`}
-              className="rounded-lg bg-blue-600 px-5 py-3 text-white hover:bg-blue-700"
-            >
-              Edit Lead
-            </Link>
-
-          </div>
-
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">Lead details</h1>
+          <p className="text-sm text-slate-500">Review all available student information and next actions.</p>
         </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-
-          <div className="rounded-xl bg-white p-6 shadow">
-
-            <h2 className="mb-5 text-xl font-semibold">
-              Personal Information
-            </h2>
-
-            <div className="space-y-3">
-
-              <p><strong>Name:</strong> {student.name}</p>
-
-              <p><strong>Email:</strong> {student.email}</p>
-
-              <p><strong>Phone:</strong> {student.phone}</p>
-
-              <p><strong>Region:</strong> {student.region}</p>
-
-              <p><strong>City:</strong> {student.city}</p>
-
-            </div>
-
-          </div>
-
-          <div className="rounded-xl bg-white p-6 shadow">
-
-            <h2 className="mb-5 text-xl font-semibold">
-              Study Information
-            </h2>
-
-            <div className="space-y-3">
-
-              <p>
-                <strong>Interested Country:</strong>{" "}
-                {student.interestedCountry}
-              </p>
-
-              <p>
-                <strong>Intake:</strong>{" "}
-                {student.intakeMonth} {student.intakeYear}
-              </p>
-
-              <p>
-                <strong>Status:</strong>{" "}
-                <span className="rounded bg-blue-100 px-3 py-1 text-blue-700">
-                  {student.leadStatus}
-                </span>
-              </p>
-
-            </div>
-
-          </div>
-
-          <div className="rounded-xl bg-white p-6 shadow">
-
-            <h2 className="mb-5 text-xl font-semibold">
-              Assignment
-            </h2>
-
-            <div className="space-y-3">
-
-              <p>
-                <strong>Partner:</strong>{" "}
-                {student.partner?.name || "Not Assigned"}
-              </p>
-
-              <p>
-                <strong>City Head:</strong>{" "}
-                {student.cityHead?.name || "Not Assigned"}
-              </p>
-
-              <p>
-                <strong>Created By:</strong>{" "}
-                {student.createdBy?.name || "-"}
-              </p>
-
-            </div>
-
-          </div>
-
-          <div className="rounded-xl bg-white p-6 shadow">
-
-            <h2 className="mb-5 text-xl font-semibold">
-              Remarks
-            </h2>
-
-            <p className="text-slate-700 whitespace-pre-wrap">
-              {student.remarks || "No remarks available."}
-            </p>
-
-          </div>
-
-        </div>
-
+        <Link to={`/students/edit/${student._id}`} className="rounded-full bg-cyan-600 px-4 py-2 text-sm font-semibold text-white">Edit lead</Link>
       </div>
 
-    </DashboardLayout>
+      <div className="grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div><p className="text-sm text-slate-500">Name</p><p className="mt-1 font-semibold text-slate-900">{student.name}</p></div>
+            <div><p className="text-sm text-slate-500">Email</p><p className="mt-1 font-semibold text-slate-900">{student.email}</p></div>
+            <div><p className="text-sm text-slate-500">Phone</p><p className="mt-1 font-semibold text-slate-900">{student.phone}</p></div>
+            <div><p className="text-sm text-slate-500">Study preference</p><p className="mt-1 font-semibold text-slate-900">{student.studyPreference}</p></div>
+            <div><p className="text-sm text-slate-500">Preferred country</p><p className="mt-1 font-semibold text-slate-900">{student.preferredCountry || "—"}</p></div>
+            <div><p className="text-sm text-slate-500">Region</p><p className="mt-1 font-semibold text-slate-900">{student.region || "—"}</p></div>
+            <div><p className="text-sm text-slate-500">City</p><p className="mt-1 font-semibold text-slate-900">{student.city}</p></div>
+            <div><p className="text-sm text-slate-500">Lead status</p><p className="mt-1 font-semibold text-slate-900">{student.leadStatus || "Cold"}</p></div>
+            <div><p className="text-sm text-slate-500">Follow-up date</p><p className="mt-1 font-semibold text-slate-900">{student.followUpDate ? new Date(student.followUpDate).toLocaleDateString() : "—"}</p></div>
+            <div><p className="text-sm text-slate-500">Created by</p><p className="mt-1 font-semibold text-slate-900">{student.createdBy?.name || "—"}</p></div>
+          </div>
+          <div className="mt-6 rounded-2xl bg-slate-50 p-4">
+            <p className="text-sm text-slate-500">Remarks</p>
+            <p className="mt-2 text-sm text-slate-700">{student.remarks || "No remarks added yet."}</p>
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900">Quick actions</h2>
+          <div className="mt-4 space-y-3">
+            <Link to="/students" className="block rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50">Back to leads</Link>
+            <Link to="/students/create" className="block rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50">Create another lead</Link>
+          </div>
+        </div>
+      </div>
+    </div>
   );
-}
+};
+
+export default LeadDetailsPage;

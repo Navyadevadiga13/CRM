@@ -1,99 +1,82 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
-import { loginUser } from "../api/authApi";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import { login as loginRequest } from "../api/authApi";
 
 interface User {
   _id: string;
   name: string;
   email: string;
+  phone?: string;
   role: string;
-  region?: string;
+  region?: string | null;
+  city?: string | null;
   cities?: string[];
+  isActive?: boolean;
+  lastLogin?: string | null;
 }
 
 interface AuthContextType {
   user: User | null;
-  token: string | null;
   isAuthenticated: boolean;
-  loading: boolean;
+  isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({
-  children,
-}: {
-  children: ReactNode;
-}) => {
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-
-  const [token, setToken] = useState<string | null>(null);
-
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const savedToken = localStorage.getItem("token");
-    const savedUser = localStorage.getItem("user");
+    const token = localStorage.getItem("crm_token");
+    const storedUser = localStorage.getItem("crm_user");
 
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
+    if (token && storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch {
+        localStorage.removeItem("crm_token");
+        localStorage.removeItem("crm_user");
+      }
     }
 
-    setLoading(false);
+    setIsLoading(false);
   }, []);
 
-  const login = async (
-    email: string,
-    password: string
-  ) => {
-    const data = await loginUser(email, password);
-
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("user", JSON.stringify(data.user));
-
-    setToken(data.token);
+  const login = async (email: string, password: string) => {
+    const { data } = await loginRequest({ email, password });
+    localStorage.setItem("crm_token", data.token);
+    localStorage.setItem("crm_user", JSON.stringify(data.user));
     setUser(data.user);
   };
 
   const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-
-    setToken(null);
+    localStorage.removeItem("crm_token");
+    localStorage.removeItem("crm_user");
     setUser(null);
   };
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        token,
-        isAuthenticated: !!token,
-        loading,
-        login,
-        logout,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({
+      user,
+      isAuthenticated: Boolean(user),
+      isLoading,
+      login,
+      logout,
+    }),
+    [isLoading, user]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
 
   if (!context) {
-    throw new Error(
-      "useAuth must be used inside AuthProvider"
-    );
+    throw new Error("useAuth must be used within an AuthProvider");
   }
 
   return context;

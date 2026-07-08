@@ -1,184 +1,103 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-import DashboardLayout from "../../layouts/DashboardLayout";
 import { createStudent } from "../../api/studentApi";
 
-export default function CreateStudentPage() {
+const CreateStudentPage = () => {
   const navigate = useNavigate();
-
-  const [loading, setLoading] = useState(false);
-
   const [form, setForm] = useState({
     name: "",
     email: "",
     phone: "",
+    studyPreference: "",
+    preferredCountry: "",
     region: "",
     city: "",
-    interestedCountry: "",
-    intakeMonth: "",
-    intakeYear: "",
     remarks: "",
+    followUpDate: "",
   });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
-  ) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
+  const handleChange = (event: any) => {
+    const { name, value } = event.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (
-    e: React.FormEvent<HTMLFormElement>
-  ) => {
-    e.preventDefault();
+  const handleSubmit = async (event: any) => {
+    event.preventDefault();
+    setLoading(true);
+    setError("");
 
     try {
-      setLoading(true);
-
       await createStudent(form);
-
-      alert("Lead created successfully.");
-
       navigate("/students");
-    } catch (error: any) {
-      alert(
-        error?.response?.data?.message ||
-          "Unable to create lead."
-      );
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Unable to create lead");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <DashboardLayout>
-      <div className="mx-auto max-w-4xl rounded-2xl bg-white p-8 shadow">
+    <div className="mx-auto max-w-4xl rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+      <h1 className="text-2xl font-semibold text-slate-900">Create lead</h1>
+      <p className="mt-2 text-sm text-slate-500">Capture a new lead and plan its next follow-up.</p>
 
-        <h1 className="mb-8 text-3xl font-bold">
-          Create Lead
-        </h1>
+      <form onSubmit={handleSubmit} className="mt-8 grid gap-4 md:grid-cols-2">
+        {error ? <div className="md:col-span-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div> : null}
 
-        <form
-          onSubmit={handleSubmit}
-          className="grid gap-6 md:grid-cols-2"
-        >
-
-          <input
-            name="name"
-            value={form.name}
-            onChange={handleChange}
-            placeholder="Full Name"
-            className="rounded-lg border p-3"
-            required
-          />
-
-          <input
-            type="email"
-            name="email"
-            value={form.email}
-            onChange={handleChange}
-            placeholder="Email"
-            className="rounded-lg border p-3"
-            required
-          />
-
-          <input
-            name="phone"
-            value={form.phone}
-            onChange={handleChange}
-            placeholder="Phone Number"
-            className="rounded-lg border p-3"
-            required
-          />
-
-          <select
-            name="region"
-            value={form.region}
-            onChange={handleChange}
-            className="rounded-lg border p-3"
-            required
-          >
-            <option value="">Select Region</option>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-700">Name</label>
+          <input name="name" value={form.name} onChange={handleChange} required className="w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-700">Email</label>
+          <input name="email" type="email" value={form.email} onChange={handleChange} required className="w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-700">Phone</label>
+          <input name="phone" value={form.phone} onChange={handleChange} required className="w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-700">Study preference</label>
+          <select name="studyPreference" value={form.studyPreference} onChange={handleChange} required className="w-full rounded-xl border border-slate-200 px-3 py-2">
+            <option value="">Select preference</option>
+            <option value="Study in India">Study in India</option>
+            <option value="Study Abroad">Study Abroad</option>
+          </select>
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-700">Preferred country</label>
+          <input name="preferredCountry" value={form.preferredCountry} onChange={handleChange} className="w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-700">Region</label>
+          <select name="region" value={form.region} onChange={handleChange} className="w-full rounded-xl border border-slate-200 px-3 py-2">
+            <option value="">Select region</option>
             <option value="North India">North India</option>
             <option value="South India">South India</option>
             <option value="Nepal Region">Nepal Region</option>
           </select>
-
-          <input
-            name="city"
-            value={form.city}
-            onChange={handleChange}
-            placeholder="City"
-            className="rounded-lg border p-3"
-            required
-          />
-
-          <input
-            name="interestedCountry"
-            value={form.interestedCountry}
-            onChange={handleChange}
-            placeholder="Interested Country"
-            className="rounded-lg border p-3"
-            required
-          />
-
-          <select
-            name="intakeMonth"
-            value={form.intakeMonth}
-            onChange={handleChange}
-            className="rounded-lg border p-3"
-            required
-          >
-            <option value="">Select Intake Month</option>
-
-            <option value="January">January</option>
-            <option value="February">February</option>
-            <option value="March">March</option>
-            <option value="April">April</option>
-            <option value="May">May</option>
-            <option value="June">June</option>
-            <option value="July">July</option>
-            <option value="August">August</option>
-            <option value="September">September</option>
-            <option value="October">October</option>
-            <option value="November">November</option>
-            <option value="December">December</option>
-          </select>
-
-          <input
-            name="intakeYear"
-            value={form.intakeYear}
-            onChange={handleChange}
-            placeholder="Intake Year"
-            className="rounded-lg border p-3"
-            required
-          />
-
-          <textarea
-            name="remarks"
-            value={form.remarks}
-            onChange={handleChange}
-            rows={4}
-            placeholder="Remarks"
-            className="rounded-lg border p-3 md:col-span-2"
-          />
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="rounded-lg bg-blue-600 p-3 font-semibold text-white hover:bg-blue-700 md:col-span-2"
-          >
-            {loading ? "Creating..." : "Create Lead"}
-          </button>
-
-        </form>
-
-      </div>
-    </DashboardLayout>
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-700">City</label>
+          <input name="city" value={form.city} onChange={handleChange} required className="w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-700">Follow-up date</label>
+          <input name="followUpDate" type="date" value={form.followUpDate} onChange={handleChange} className="w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </div>
+        <div className="md:col-span-2">
+          <label className="mb-2 block text-sm font-medium text-slate-700">Remarks</label>
+          <textarea name="remarks" rows={4} value={form.remarks} onChange={handleChange} className="w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </div>
+        <div className="md:col-span-2 flex justify-end gap-3">
+          <button type="button" onClick={() => navigate("/students")} className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Cancel</button>
+          <button type="submit" disabled={loading} className="rounded-full bg-cyan-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-70">{loading ? "Saving..." : "Create lead"}</button>
+        </div>
+      </form>
+    </div>
   );
-}
+};
+
+export default CreateStudentPage;

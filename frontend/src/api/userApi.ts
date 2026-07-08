@@ -1,64 +1,16 @@
 import axiosClient from "./axiosClient";
 
-export interface CreateUserPayload {
-  name: string;
-  email: string;
-  phone: string;
-  password: string;
-  role: string;
-  region: string;
-  cities: string[];
-}
+export const getUsers = (params?: Record<string, string | number | undefined>) =>
+  axiosClient.get("/users/all", { params });
 
-export const getUsers = async () => {
-  const response = await axiosClient.get("/users/all");
-  return response.data;
-};
+export const createUser = (payload: Record<string, unknown>) =>
+  axiosClient.post("/users/create", payload);
 
-export const getUser = async (id: string) => {
-  const response = await axiosClient.get(`/users/${id}`);
-  return response.data;
-};
+export const getUserById = (id: string) => axiosClient.get(`/users/${id}`);
 
-export const createUser = async (
-  data: CreateUserPayload
-) => {
-  const response = await axiosClient.post(
-    "/users/create",
-    data
-  );
+export const updateUser = (id: string, payload: Record<string, unknown>) =>
+  axiosClient.put(`/users/update/${id}`, payload);
 
-  return response.data;
-};
+export const toggleUserStatus = (id: string) => axiosClient.patch(`/users/status/${id}`);
 
-export const updateUser = async (
-  id: string,
-  data: any
-) => {
-  const response = await axiosClient.put(
-    `/users/update/${id}`,
-    data
-  );
-
-  return response.data;
-};
-
-export const toggleUserStatus = async (
-  id: string
-) => {
-  const response = await axiosClient.patch(
-    `/users/status/${id}`
-  );
-
-  return response.data;
-};
-
-export const deleteUser = async (
-  id: string
-) => {
-  const response = await axiosClient.delete(
-    `/users/${id}`
-  );
-
-  return response.data;
-};
+export const deleteUser = (id: string) => axiosClient.delete(`/users/${id}`);

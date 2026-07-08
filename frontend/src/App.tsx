@@ -1,8 +1,10 @@
+import type { ReactElement } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import { useAuth } from "./context/AuthContext";
 
 import ProtectedRoute from "./components/ProtectedRoute";
+import DashboardLayout from "./layouts/DashboardLayout";
 
 import LoginPage from "./pages/auth/LoginPage";
 
@@ -17,6 +19,11 @@ import CreateStudentPage from "./pages/students/CreateStudentPage";
 import EditStudentPage from "./pages/students/EditStudentPage";
 import LeadDetailsPage from "./pages/students/LeadDetailsPage";
 
+const withLayout = (element: ReactElement) => (
+  <ProtectedRoute>
+    <DashboardLayout>{element}</DashboardLayout>
+  </ProtectedRoute>
+);
 
 function App() {
   const { isAuthenticated } = useAuth();
@@ -44,78 +51,46 @@ function App() {
 
       <Route
         path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <DashboardPage />
-          </ProtectedRoute>
-        }
+        element={withLayout(<DashboardPage />)}
       />
 
       {/* Users */}
 
       <Route
         path="/users"
-        element={
-          <ProtectedRoute>
-            <UsersPage />
-          </ProtectedRoute>
-        }
+        element={withLayout(<UsersPage />)}
       />
 
       <Route
         path="/users/create"
-        element={
-          <ProtectedRoute>
-            <CreateUserPage />
-          </ProtectedRoute>
-        }
+        element={withLayout(<CreateUserPage />)}
       />
 
       <Route
         path="/users/edit/:id"
-        element={
-          <ProtectedRoute>
-            <EditUserPage />
-          </ProtectedRoute>
-        }
+        element={withLayout(<EditUserPage />)}
       />
 
       {/* Leads */}
 
       <Route
         path="/students"
-        element={
-          <ProtectedRoute>
-            <StudentsPage />
-          </ProtectedRoute>
-        }
+        element={withLayout(<StudentsPage />)}
       />
 
       <Route
         path="/students/create"
-        element={
-          <ProtectedRoute>
-            <CreateStudentPage />
-          </ProtectedRoute>
-        }
+        element={withLayout(<CreateStudentPage />)}
       />
 
       <Route
         path="/students/edit/:id"
-        element={
-          <ProtectedRoute>
-            <EditStudentPage />
-          </ProtectedRoute>
-        }
+        element={withLayout(<EditStudentPage />)}
       />
 
       <Route
         path="/students/:id"
-        element={
-          <ProtectedRoute>
-            <LeadDetailsPage />
-          </ProtectedRoute>
-        }
+        element={withLayout(<LeadDetailsPage />)}
       />
 
       {/* Reports */}

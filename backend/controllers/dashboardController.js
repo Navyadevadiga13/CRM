@@ -27,6 +27,8 @@ if (user.role === "city_head") {
   coldLeads,
   warmLeads,
   hotLeads,
+  convertedLeads,
+  withdrawnLeads,
   partners,
   cityHeads,
   dataEntries,
@@ -51,6 +53,16 @@ if (user.role === "city_head") {
       Student.countDocuments({
         ...studentFilter,
         leadStatus: "Hot",
+      }),
+
+      Student.countDocuments({
+        ...studentFilter,
+        leadStatus: "Converted",
+      }),
+
+      Student.countDocuments({
+        ...studentFilter,
+        leadStatus: "Withdrawn",
       }),
 
    User.countDocuments({
@@ -82,6 +94,9 @@ User.countDocuments({
 
       Student.find({
         ...studentFilter,
+        // Only Warm leads carry a "system reminder" style followUpDate;
+        // Converted/Withdrawn leads are terminal and shouldn't show up here.
+        leadStatus: "Warm",
         followUpDate: {
           $gte: new Date(
             new Date().setHours(0, 0, 0, 0)
@@ -111,6 +126,10 @@ coldLeads,
 warmLeads,
 
 hotLeads,
+
+convertedLeads,
+
+withdrawnLeads,
 
 partners,
 

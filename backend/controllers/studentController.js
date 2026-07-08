@@ -11,7 +11,21 @@ const VALID_STATUS = [
   "Cold",
   "Warm",
   "Hot",
+  "Converted",
+  "Withdrawn",
 ];
+
+const VALID_INTAKES = [6, 12, 18, 24];
+
+// Defines which statuses a lead can move to from its current status.
+// Withdrawn is only reachable from Converted, per the lifecycle rules.
+const LEAD_STATUS_TRANSITIONS = {
+  Cold: ["Cold", "Warm", "Hot"],
+  Warm: ["Warm", "Cold", "Hot"],
+  Hot: ["Hot", "Warm", "Converted"],
+  Converted: ["Converted", "Withdrawn"],
+  Withdrawn: ["Withdrawn"],
+};
 
 const VALID_STUDY_PREFERENCES = ["Study in India", "Study Abroad"];
 
@@ -481,7 +495,12 @@ export const updateStudent = async (req, res) => {
 
 export const updateLeadStatus = async (req, res) => {
   try {
-    const { leadStatus } = req.body;
+    const {
+      leadStatus,
+      expectedIntake,
+      destinationCountry,
+      withdrawalReason,
+    } = req.body;
 
     // Only City Head can update lead status
   if (
@@ -517,6 +536,58 @@ if (
     message: "You can only update leads assigned to you.",
   });
 }
+
+    // Enforce the lead lifecycle: Cold -> Warm -> Hot -> Converted -> Withdrawn
+    const allowedNextStatuses = LEAD_STATUS_TRANSITIONS[student.leadStatus] || [];
+    if (!allowedNextStatuses.includes(leadStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot move a lead from '${student.leadStatus}' to '${leadStatus}'.`,
+      });
+    }
+
+    // Warm: capture the expected intake period so the system can
+    // auto-calculate the next follow-up date (handled in the Student model).
+    if (leadStatus === "Warm") {
+      const intake = Number(expectedIntake);
+      if (!VALID_INTAKES.includes(intake)) {
+        return res.status(400).json({
+          success: false,
+          message: "A valid expected intake (6, 12, 18, or 24 months) is required.",
+        });
+      }
+      student.expectedIntake = intake;
+    }
+
+    // Hot: no extra fields required, just confirms the student's plans.
+    if (leadStatus === "Hot") {
+      student.expectedIntake = null;
+    }
+
+    // Converted: the student has joined a group; capture the destination.
+    if (leadStatus === "Converted") {
+      if (!isSafeString(destinationCountry)) {
+        return res.status(400).json({
+          success: false,
+          message: "Destination country is required to mark a lead as Converted.",
+        });
+      }
+      student.destinationCountry = destinationCountry.trim();
+      student.conversionDate = new Date();
+    }
+
+    // Withdrawn: only reachable from Converted; capture the reason.
+    if (leadStatus === "Withdrawn") {
+      if (!isSafeString(withdrawalReason)) {
+        return res.status(400).json({
+          success: false,
+          message: "A withdrawal reason is required to mark a lead as Withdrawn.",
+        });
+      }
+      student.withdrawalReason = withdrawalReason.trim();
+      student.withdrawalDate = new Date();
+    }
+
     student.leadStatus = leadStatus;
     student.updatedBy = req.user._id;
 

@@ -1,6 +1,6 @@
 import Student from "../models/Student.js";
 import User from "../models/User.js";
-
+import { handleLeadCreated } from "../services/automation/leadCreated.js";
 const VALID_REGIONS = [
   "North India",
   "South India",
@@ -156,6 +156,7 @@ export const createStudent = async (req, res) => {
       followUpDate: followUpDate || null,
       createdBy: req.user._id,
     });
+    await handleLeadCreated(student, req.user);
 
     res.status(201).json({
       success: true,

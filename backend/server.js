@@ -1,5 +1,4 @@
 import dns from "dns";
-
 dns.setServers(["8.8.8.8", "1.1.1.1"]);
 
 import express from "express";
@@ -7,7 +6,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 
 import connectDB from "./config/db.js";
-
+import activityRoutes from "./routes/activityRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import studentRoutes from "./routes/studentRoutes.js";
@@ -34,8 +33,9 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/students", studentRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/activities", activityRoutes);
 const PORT = process.env.PORT || 8080;
-
+ 
 const startServer = async () => {
   try {
     await connectDB();

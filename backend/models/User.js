@@ -1,12 +1,7 @@
 import mongoose from "mongoose";
+import { DIVISIONS, ALL_REGIONS, getDivisionForRegion } from "../utils/regions.js";
 
-const VALID_REGIONS = ["North India", "South India", "Nepal Region"];
-
-// Divisions are the top-level areas a Co-Admin is scoped to.
-// Kept separate from VALID_REGIONS because a Co-Admin's division
-// (e.g. "International") doesn't necessarily map to a Regional
-// Head's operating region.
-const VALID_DIVISIONS = ["North India", "South India", "International"];
+const ROLES_WITH_REGION = ["regional_head", "partner", "city_head"];
 
 const userSchema = new mongoose.Schema(
   {
@@ -54,29 +49,34 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
-    // Only set for role = "regional_head", "partner" (auto), "city_head" (auto)
+    // Only set for role = "regional_head", "partner", "city_head".
+    // Picked directly (e.g. "Uttar Pradesh", "Coastal Karnataka", "Nepal")
+    // — see regions.js for the full list under each division.
     region: {
       type: String,
-      enum: VALID_REGIONS,
+      enum: ALL_REGIONS,
       default: null,
     },
 
-    // Only set for role = "co_admin". Scopes a Co-Admin to a single
-    // division (e.g. "South India", "North India", "International").
+    // For "co_admin": picked directly — one of the 3 divisions.
+    // For "regional_head" / "partner" / "city_head": NEVER picked
+    // manually. It's auto-derived from `region` in the pre-validate hook
+    // below, so whoever creates the account only ever has to choose a
+    // region, not know which division it rolls up under.
     division: {
       type: String,
-      enum: VALID_DIVISIONS,
+      enum: DIVISIONS,
       default: null,
     },
 
-    // Only set for role = "city_head" (single city)
+    // Only set for role = "city_head" (single city, must belong to `region`)
     city: {
       type: String,
       default: null,
       trim: true,
     },
 
-    // Only set for role = "partner" (a partner can own many cities)
+    // Only set for role = "partner" (each must belong to `region`)
     cities: [
       {
         type: String,
@@ -112,6 +112,32 @@ const userSchema = new mongoose.Schema(
   }
 );
 
+// ---- Auto-derive division from region ----
+// Regional Head / Partner / City Head only ever submit a region; the
+// division it belongs to is looked up automatically here rather than
+// requiring a second manual field. This runs on every save, so it also
+// acts as a safety net if a controller-level check is ever missed.
+userSchema.pre("validate", function (next) {
+  if (ROLES_WITH_REGION.includes(this.role)) {
+    if (this.region) {
+      const derived = getDivisionForRegion(this.region);
+      if (!derived) {
+        // Should be unreachable given the `region` enum above, but guards
+        // against the enum and REGIONS_BY_DIVISION ever drifting apart.
+        return next(
+          new Error(
+            `Region "${this.region}" is not mapped to a division in regions.js.`
+          )
+        );
+      }
+      this.division = derived;
+    } else {
+      this.division = null;
+    }
+  }
+  next();
+});
+
 // ---- Enforce a single Super Admin at the model level ----
 // The controller-level role hierarchy already prevents any role from
 // creating a second Super Admin via the API, but this guard protects
@@ -136,7 +162,7 @@ userSchema.index({ division: 1 });
 userSchema.index({ city: 1 });
 userSchema.index({ role: 1, region: 1 });
 
-export const REGIONS = VALID_REGIONS;
-export const DIVISIONS = VALID_DIVISIONS;
+export const REGIONS = ALL_REGIONS;
+export { DIVISIONS };
 
 export default mongoose.model("User", userSchema);

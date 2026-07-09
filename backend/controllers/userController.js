@@ -1,5 +1,9 @@
 import bcrypt from "bcryptjs";
 import User, { DIVISIONS } from "../models/User.js";
+import {
+  isValidRegion,
+  isValidCityForRegion,
+} from "../utils/regions.js";
 
 /*
 |--------------------------------------------------------------------------
@@ -7,9 +11,7 @@ import User, { DIVISIONS } from "../models/User.js";
 |--------------------------------------------------------------------------
 | - Regional Head creates City Heads *and* Partners.
 | - Partner creates no one (Partners aren't responsible for hiring/lead
-|   management, only for owning cities). Previously this incorrectly
-|   allowed Partner -> City Head, which conflicts with "City Heads are
-|   created by the Regional Head."
+|   management, only for owning cities).
 */
 
 const roleHierarchy = {
@@ -24,6 +26,7 @@ const roleHierarchy = {
     "regional_head",
     "partner",
     "data_entry",
+    "city_head"
   ],
 
   regional_head: [
@@ -38,18 +41,6 @@ const roleHierarchy = {
   data_entry: [],
 };
 
-const VALID_REGIONS = [
-  "North India",
-  "South India",
-  "Nepal Region",
-];
-
-const CITY_OPTIONS_BY_REGION = {
-  "North India": ["Delhi", "Noida", "Jaipur", "Lucknow", "Chandigarh"],
-  "South India": ["Bangalore", "Hyderabad", "Chennai", "Kochi", "Mangalore"],
-  "Nepal Region": ["Kathmandu", "Pokhara", "Lalitpur"],
-};
-
 /*
 |--------------------------------------------------------------------------
 | Helpers
@@ -62,11 +53,6 @@ const isValidEmail = (email) =>
 const isValidPhone = (phone) =>
   /^[6-9]\d{9}$/.test(phone);
 
-const isValidCityForRegion = (city, region) => {
-  const allowedCities = CITY_OPTIONS_BY_REGION[region] || [];
-  return allowedCities.includes(city);
-};
-
 const needsRegion = (role) =>
   role === "regional_head" || role === "partner" || role === "city_head";
 
@@ -74,11 +60,11 @@ const needsRegion = (role) =>
 |--------------------------------------------------------------------------
 | Role-based user scoping
 |--------------------------------------------------------------------------
-| Mirrors isStudentInScope in studentController.js: route-level `authorize`
-| only confirms the caller's role is generally allowed to hit this endpoint,
-| not that the *specific target user* is in their territory. Without this,
-| a Regional Head could edit/toggle a Partner or City Head in a different
-| region, and a Partner could edit any City Head account system-wide.
+| Route-level `authorize` only confirms the caller's role is generally
+| allowed to hit an endpoint, not that the *specific target user* is in
+| their territory. Without this, a Regional Head could edit a Partner or
+| City Head in a different region, and a Partner could edit any City Head
+| account system-wide.
 */
 const isUserInScope = (actor, target) => {
   switch (actor.role) {
@@ -90,11 +76,12 @@ const isUserInScope = (actor, target) => {
       if (target.role === "super_admin" || target.role === "co_admin") {
         return false;
       }
-      // If this Co-Admin has a division set, scope to users whose region
-      // matches it. data_entry has no region field today, so division
-      // scoping can't reach them yet — see the note in getUsers.
-      if (actor.division && target.region) {
-        return target.region === actor.division;
+      // Scope to users whose (auto-derived) division matches this
+      // Co-Admin's division. data_entry has no region/division field
+      // today, so division scoping can't reach them yet — see the note
+      // in getUsers.
+      if (actor.division && target.division) {
+        return target.division === actor.division;
       }
       return true;
 
@@ -177,7 +164,9 @@ export const createUser = async (req, res) => {
       });
     }
 
-    // Division validation (Co-Admin only)
+    // Division validation — Co-Admin only. This is the top-level, 3-value
+    // field (North India / South India / International); it is never
+    // free text.
     if (role === "co_admin") {
       if (!division || !DIVISIONS.includes(division.trim())) {
         return res.status(400).json({
@@ -187,20 +176,23 @@ export const createUser = async (req, res) => {
       }
     }
 
-    // Region validation — now also required for City Head, since a City
-    // Head's region is auto-derived/assigned at creation time (see User.js
-    // model comment) rather than left null.
-    if (
-      needsRegion(role) &&
-      (!region || !VALID_REGIONS.includes(region.trim()))
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Valid region is required.",
-      });
+    // Region validation — Regional Head / Partner / City Head. These
+    // roles pick a region directly (e.g. "Uttar Pradesh", "Nepal"); the
+    // division it belongs to is derived automatically on the model, so
+    // it's never asked for here. Must come from the fixed regions.js
+    // list — no manual/free-text region is accepted.
+    if (needsRegion(role)) {
+      const trimmedRegion = region?.trim();
+      if (!trimmedRegion || !isValidRegion(trimmedRegion)) {
+        return res.status(400).json({
+          success: false,
+          message: "A valid region is required.",
+        });
+      }
     }
 
-    // City validation
+    // City validation — City Head. Must belong to the selected region;
+    // no manual/free-text city is accepted.
     if (role === "city_head") {
       const trimmedCity = city?.trim();
       if (!trimmedCity) {
@@ -218,7 +210,8 @@ export const createUser = async (req, res) => {
       }
     }
 
-    // Partner cities validation
+    // Partner cities validation — each must belong to the selected region;
+    // no manual/free-text city is accepted.
     if (role === "partner") {
       const normalizedCities = Array.isArray(cities)
         ? cities.map((item) => item.trim()).filter(Boolean)
@@ -231,7 +224,9 @@ export const createUser = async (req, res) => {
         });
       }
 
-      const invalidCities = normalizedCities.filter((item) => !isValidCityForRegion(item, region?.trim()));
+      const invalidCities = normalizedCities.filter(
+        (item) => !isValidCityForRegion(item, region?.trim())
+      );
       if (invalidCities.length > 0) {
         return res.status(400).json({
           success: false,
@@ -272,6 +267,9 @@ export const createUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create user
+    // Note: `division` for regional_head/partner/city_head is NOT set here
+    // — it's derived automatically from `region` by the User model's
+    // pre-validate hook.
     const user = await User.create({
       name: name.trim(),
       email: normalizedEmail,
@@ -347,10 +345,12 @@ export const getUsers = async (req, res) => {
 
     const filter = {};
 
-    // Co-Admin: scoped to their own division, and can never see the
-    // Super Admin or other Co-Admins.
-    // NOTE: only regional_head / partner / city_head carry a `region`
-    // field today. data_entry has no region/division of its own, so a
+    // Co-Admin: view-only access, scoped to their own division (see
+    // toggleUserStatus/deleteUser for the enforcement that Co-Admins can't
+    // activate/deactivate or delete). Never sees the Super Admin or other
+    // Co-Admins.
+    // NOTE: only regional_head / partner / city_head carry a `division`
+    // field today (auto-derived from `region`). data_entry has none, so a
     // division-scoped Co-Admin currently won't see data_entry users in
     // this filter. If Co-Admins need to manage their division's data
     // entry staff too, data_entry will need a region/division field (or
@@ -361,7 +361,7 @@ export const getUsers = async (req, res) => {
         $in: ["regional_head", "partner", "city_head", "data_entry"],
       };
       if (loggedInUser.division) {
-        filter.region = loggedInUser.division;
+        filter.division = loggedInUser.division;
       }
     }
 
@@ -516,98 +516,96 @@ export const updateUser = async (req, res) => {
       const existingUserWithPhone = await User.findOne({ phone: phone.trim(), _id: { $ne: user._id } });
       if (existingUserWithPhone) {
         return res.status(409).json({
-      success: false,
+          success: false,
           message: "A user with this phone already exists.",
-    });
-  }
+        });
+      }
       user.phone = phone.trim();
     }
 
-    if (user.role === "co_admin") {
-      if (division) {
-        const trimmedDivision = division.trim();
-        if (!DIVISIONS.includes(trimmedDivision)) {
-          return res.status(400).json({
-            success: false,
-            message: "Invalid division.",
-          });
-        }
-        user.division = trimmedDivision;
+    // Division — Co-Admin only. Optional: only validated/applied if the
+    // caller is actually trying to change it.
+    if (user.role === "co_admin" && division) {
+      const trimmedDivision = division.trim();
+      if (!DIVISIONS.includes(trimmedDivision)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid division.",
+        });
       }
+      user.division = trimmedDivision;
     }
 
-    if (
-      user.role === "regional_head" ||
-      user.role === "partner" ||
-      user.role === "city_head"
-    ) {
-      if (region) {
-        const trimmedRegion = region.trim();
-        if (!VALID_REGIONS.includes(trimmedRegion)) {
-          return res.status(400).json({
-            success: false,
-            message: "Invalid region.",
-          });
-        }
-
-        // If a City Head's region changes, their existing city must still
-        // be valid for the new region — otherwise we'd end up with a
-        // city/region pair that fails isValidCityForRegion everywhere else.
-        if (
-          user.role === "city_head" &&
-          user.city &&
-          !isValidCityForRegion(user.city, trimmedRegion)
-        ) {
-          return res.status(400).json({
-            success: false,
-            message:
-              "Cannot change region: current city is not valid for the new region. Update the city in the same request.",
-          });
-        }
-
-        user.region = trimmedRegion;
+    // Region — Regional Head / Partner / City Head. Optional: only
+    // validated/applied if the caller is actually trying to change it, so
+    // updating unrelated fields (name, isActive, ...) never fails with
+    // "region is required". `division` is never taken from the request
+    // here — the model's pre-validate hook re-derives it from the new
+    // region automatically.
+    if (needsRegion(user.role) && region) {
+      const trimmedRegion = region.trim();
+      if (!isValidRegion(trimmedRegion)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid region.",
+        });
       }
+
+      // If a City Head's region changes, their existing city must still
+      // be valid for the new region — otherwise we'd end up with a
+      // city/region pair that fails isValidCityForRegion everywhere else.
+      if (
+        user.role === "city_head" &&
+        user.city &&
+        !isValidCityForRegion(user.city, trimmedRegion)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Cannot change region: current city is not valid for the new region. Update the city in the same request.",
+        });
+      }
+
+      user.region = trimmedRegion;
     }
 
-    if (
-      user.role === "city_head"
-    ) {
-      if (city) {
-        const trimmedCity = city.trim();
-        if (!isValidCityForRegion(trimmedCity, user.region?.trim())) {
-      return res.status(400).json({
-        success: false,
-            message: "Please choose a valid city for the selected region.",
-      });
-    }
-        user.city = trimmedCity;
+    // City — City Head only. Validated against the (possibly just-updated)
+    // region above.
+    if (user.role === "city_head" && city) {
+      const trimmedCity = city.trim();
+      if (!isValidCityForRegion(trimmedCity, user.region)) {
+        return res.status(400).json({
+          success: false,
+          message: "Please choose a valid city for the selected region.",
+        });
       }
+      user.city = trimmedCity;
     }
 
-    if (
-      user.role === "partner"
-    ) {
-      if (cities) {
-        const normalizedCities = Array.isArray(cities)
-          ? cities.map((item) => item.trim()).filter(Boolean)
-          : [];
+    // Cities — Partner only. Validated against the (possibly just-updated)
+    // region above.
+    if (user.role === "partner" && cities) {
+      const normalizedCities = Array.isArray(cities)
+        ? cities.map((item) => item.trim()).filter(Boolean)
+        : [];
 
-        if (normalizedCities.length === 0) {
-          return res.status(400).json({
-            success: false,
-            message: "Partner must have at least one city.",
-    });
-        }
-
-        const invalidCities = normalizedCities.filter((item) => !isValidCityForRegion(item, user.region?.trim()));
-        if (invalidCities.length > 0) {
-          return res.status(400).json({
-      success: false,
-            message: "Please choose valid cities for the selected region.",
-    });
-  }
-        user.cities = normalizedCities;
+      if (normalizedCities.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Partner must have at least one city.",
+        });
       }
+
+      const invalidCities = normalizedCities.filter(
+        (item) => !isValidCityForRegion(item, user.region)
+      );
+      if (invalidCities.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Please choose valid cities for the selected region.",
+        });
+      }
+      user.cities = normalizedCities;
     }
 
     if (typeof isActive === "boolean") {
@@ -640,11 +638,20 @@ export const updateUser = async (req, res) => {
 |--------------------------------------------------------------------------
 | Activate / Deactivate User
 |--------------------------------------------------------------------------
+| Super Admin only. Co-Admins have create/edit/view access to users but
+| are explicitly not permitted to activate or deactivate accounts.
 */
 
 export const toggleUserStatus = async (req, res) => {
 
   try {
+
+    if (req.user.role === "co_admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Co-Admins are not permitted to activate or deactivate user accounts.",
+      });
+    }
 
     const user = await User.findById(req.params.id);
 
@@ -659,13 +666,6 @@ export const toggleUserStatus = async (req, res) => {
       return res.status(403).json({
         success: false,
         message: "Super Admin cannot be deactivated.",
-      });
-    }
-
-    if (req.user.role === "co_admin" && user.role === "super_admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Co Admin cannot manage the Super Admin account.",
       });
     }
 
@@ -709,11 +709,20 @@ export const toggleUserStatus = async (req, res) => {
 |--------------------------------------------------------------------------
 | Delete User
 |--------------------------------------------------------------------------
+| Super Admin only. Co-Admins have create/edit/view access to users but
+| are explicitly not permitted to delete accounts.
 */
 
 export const deleteUser = async (req, res) => {
 
   try {
+
+    if (req.user.role === "co_admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Co-Admins are not permitted to delete user accounts.",
+      });
+    }
 
     const user = await User.findById(req.params.id);
 
@@ -724,13 +733,6 @@ export const deleteUser = async (req, res) => {
         message: "User not found.",
       });
 
-    }
-
-    if (req.user.role === "co_admin" && user.role === "super_admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Co Admin cannot delete the Super Admin account.",
-      });
     }
 
     if (user.role === "super_admin") {

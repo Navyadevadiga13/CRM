@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { ALL_REGIONS } from "../utils/regions.js";
 
 const studentSchema = new mongoose.Schema(
   {
@@ -42,7 +43,7 @@ const studentSchema = new mongoose.Schema(
 
     region: {
       type: String,
-      enum: ["North India", "South India", "Nepal Region"],
+      enum: ALL_REGIONS,
       default: null,
     },
 
@@ -65,6 +66,9 @@ const studentSchema = new mongoose.Schema(
     },
 
     // ---- Lead lifecycle ----
+    // Any status can move to any other status directly (Cold -> Converted,
+    // Cold -> Withdrawn, etc.) — the only gate is each status's own
+    // mandatory fields, validated below. There is no forced staircase.
     leadStatus: {
       type: String,
       enum: ["Cold", "Warm", "Hot", "Converted", "Withdrawn"],
@@ -79,11 +83,29 @@ const studentSchema = new mongoose.Schema(
       default: null,
     },
 
-    // Set when leadStatus = "Converted"
+    // ---- Set when leadStatus = "Converted" ----
     destinationCountry: {
       type: String,
       trim: true,
       default: "",
+    },
+
+    // Admission intake month (1-12) and year — distinct fields so
+    // reporting/reminders can query them directly instead of parsing
+    // conversionDate (which just records *when the record was marked
+    // Converted*, not the intake month/year the student is admitted for).
+    intakeMonth: {
+      type: Number,
+      min: 1,
+      max: 12,
+      default: null,
+    },
+
+    intakeYear: {
+      type: Number,
+      min: 2000,
+      max: 2100,
+      default: null,
     },
 
     conversionDate: {
@@ -91,7 +113,7 @@ const studentSchema = new mongoose.Schema(
       default: null,
     },
 
-    // Set when leadStatus = "Withdrawn" (only reachable from Converted)
+    // Set when leadStatus = "Withdrawn"
     withdrawalReason: {
       type: String,
       trim: true,
@@ -142,74 +164,52 @@ const studentSchema = new mongoose.Schema(
 );
 
 // ---- Lifecycle validation & automation ----
-studentSchema.pre("validate", async function (next) {
-  try {
-    // Warm: require an intake period and auto-calc the follow-up date
-    if (this.leadStatus === "Warm") {
-      if (!this.expectedIntake) {
-        return next(
-          new Error("expectedIntake is required when leadStatus is 'Warm'")
-        );
-      }
-      const base = new Date();
-      base.setMonth(base.getMonth() + this.expectedIntake);
-      this.followUpDate = base;
+// Only validates the mandatory fields for whichever status is being set —
+// no requirement that the lead passed through any particular prior status.
+studentSchema.pre("validate", function (next) {
+  // Warm: require an intake period and auto-calc the follow-up date
+  if (this.leadStatus === "Warm") {
+    if (!this.expectedIntake) {
+      return next(
+        new Error("expectedIntake is required when leadStatus is 'Warm'")
+      );
     }
-
-    // Converted: require destination country + intake month/year, stamp conversion date
-    if (this.leadStatus === "Converted") {
-      if (!this.destinationCountry) {
-        return next(
-          new Error("destinationCountry is required when leadStatus is 'Converted'")
-        );
-      }
-      if (!this.intakeMonth || !this.intakeYear) {
-        return next(
-          new Error("intakeMonth and intakeYear are required when leadStatus is 'Converted'")
-        );
-      }
-      if (!this.conversionDate) {
-        this.conversionDate = new Date();
-      }
-    }
-
-    // Withdrawn: only valid coming from a Converted student, require a reason
-    if (this.leadStatus === "Withdrawn") {
-      if (!this.withdrawalReason) {
-        return next(
-          new Error("withdrawalReason is required when leadStatus is 'Withdrawn'")
-        );
-      }
-
-      if (this.isNew) {
-        // A brand-new document can't already have a prior "Converted" state.
-        return next(
-          new Error("A new student cannot be created directly with 'Withdrawn' status")
-        );
-      }
-
-      // Look up the student's *current* persisted status (this.leadStatus
-      // at this point is already the incoming new value, not what's in
-      // the DB), and only allow the transition if it was Converted.
-      const previous = await this.constructor
-        .findById(this._id)
-        .select("leadStatus");
-
-      if (!previous || previous.leadStatus !== "Converted") {
-        return next(
-          new Error("leadStatus can only move to 'Withdrawn' from 'Converted'")
-        );
-      }
-
-      if (!this.withdrawalDate) {
-        this.withdrawalDate = new Date();
-      }
-    }
-
-    next();
-  } catch (err) {
-    next(err);
+    const base = new Date();
+    base.setMonth(base.getMonth() + this.expectedIntake);
+    this.followUpDate = base;
   }
+
+  // Converted: require destination country + intake month/year, stamp conversion date
+  if (this.leadStatus === "Converted") {
+    if (!this.destinationCountry) {
+      return next(
+        new Error("destinationCountry is required when leadStatus is 'Converted'")
+      );
+    }
+    if (!this.intakeMonth || !this.intakeYear) {
+      return next(
+        new Error("intakeMonth and intakeYear are required when leadStatus is 'Converted'")
+      );
+    }
+    if (!this.conversionDate) {
+      this.conversionDate = new Date();
+    }
+  }
+
+  // Withdrawn: require a reason and stamp the withdrawal date. Reachable
+  // directly from any status, not just Converted.
+  if (this.leadStatus === "Withdrawn") {
+    if (!this.withdrawalReason) {
+      return next(
+        new Error("withdrawalReason is required when leadStatus is 'Withdrawn'")
+      );
+    }
+    if (!this.withdrawalDate) {
+      this.withdrawalDate = new Date();
+    }
+  }
+
+  next();
 });
 
 studentSchema.index({ phone: 1 });

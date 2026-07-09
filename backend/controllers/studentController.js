@@ -1,11 +1,6 @@
 import Student from "../models/Student.js";
 import User from "../models/User.js";
-
-const VALID_REGIONS = [
-  "North India",
-  "South India",
-  "Nepal Region",
-];
+import { isValidRegion } from "../utils/regions.js";
 
 const VALID_STATUS = [
   "Cold",
@@ -16,16 +11,6 @@ const VALID_STATUS = [
 ];
 
 const VALID_INTAKES = [6, 12, 18, 24];
-
-// Defines which statuses a lead can move to from its current status.
-// Withdrawn is only reachable from Converted, per the lifecycle rules.
-const LEAD_STATUS_TRANSITIONS = {
-  Cold: ["Cold", "Warm", "Hot"],
-  Warm: ["Warm", "Cold", "Hot"],
-  Hot: ["Hot", "Warm", "Converted"],
-  Converted: ["Converted", "Withdrawn"],
-  Withdrawn: ["Withdrawn"],
-};
 
 const VALID_STUDY_PREFERENCES = ["Study in India", "Study Abroad"];
 
@@ -156,7 +141,7 @@ export const createStudent = async (req, res) => {
 
     if (
       trimmedRegion &&
-      !VALID_REGIONS.includes(trimmedRegion)
+      !isValidRegion(trimmedRegion)
     ) {
       return res.status(400).json({
         success: false,
@@ -506,7 +491,7 @@ export const updateStudent = async (req, res) => {
 
     // Region
     if (region) {
-      if (!VALID_REGIONS.includes(region)) {
+      if (!isValidRegion(region.trim())) {
         return res.status(400).json({
           success: false,
           message: "Invalid region.",
@@ -636,14 +621,9 @@ export const updateLeadStatus = async (req, res) => {
       });
     }
 
-    // Enforce the lead lifecycle: Cold -> Warm -> Hot -> Converted -> Withdrawn
-    const allowedNextStatuses = LEAD_STATUS_TRANSITIONS[student.leadStatus] || [];
-    if (!allowedNextStatuses.includes(leadStatus)) {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot move a lead from '${student.leadStatus}' to '${leadStatus}'.`,
-      });
-    }
+    // Any status can move to any other status directly (e.g. Cold ->
+    // Converted, Cold -> Withdrawn) — there's no forced staircase. Only
+    // the mandatory fields for the *target* status are validated below.
 
     // Warm: capture the expected intake period so the system can
     // auto-calculate the next follow-up date (handled in the Student model).
@@ -697,9 +677,8 @@ export const updateLeadStatus = async (req, res) => {
       student.conversionDate = new Date();
     }
 
-    // Withdrawn: only reachable from Converted; capture the reason.
-    // (The Student model independently re-verifies the prior status was
-    // Converted before allowing this save to succeed — belt and braces.)
+    // Withdrawn: capture the reason. Reachable directly from any status,
+    // not just Converted.
     if (leadStatus === "Withdrawn") {
       if (!isSafeString(withdrawalReason)) {
         return res.status(400).json({

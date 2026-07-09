@@ -64,45 +64,11 @@ const studentSchema = new mongoose.Schema(
       default: null,
     },
 
-    // ---- Lead lifecycle ----
-    leadStatus: {
-      type: String,
-      enum: ["Cold", "Warm", "Hot", "Converted", "Withdrawn"],
-      default: "Cold",
-    },
-
-    // Set when leadStatus = "Warm": how many months out the student
-    // expects to start studying. Drives the auto-calculated followUpDate.
-    expectedIntake: {
-      type: Number,
-      enum: [6, 12, 18, 24],
-      default: null,
-    },
-
-    // Set when leadStatus = "Converted"
-    destinationCountry: {
-      type: String,
-      trim: true,
-      default: "",
-    },
-
-    conversionDate: {
-      type: Date,
-      default: null,
-    },
-
-    // Set when leadStatus = "Withdrawn" (only reachable from Converted)
-    withdrawalReason: {
-      type: String,
-      trim: true,
-      maxlength: 500,
-      default: "",
-    },
-
-    withdrawalDate: {
-      type: Date,
-      default: null,
-    },
+  leadStatus: {
+  type: String,
+  enum: ["Cold", "Warm", "Hot"],
+  default: "Cold",
+},
 
     remarks: {
       type: String,

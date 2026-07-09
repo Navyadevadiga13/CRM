@@ -39,11 +39,14 @@ const DashboardPage = () => {
             ? "Monitor the regional funnel and assign partners where needed."
             : "Keep the entire consultancy operation aligned and visible.";
 
+  // Now includes Converted and Withdrawn alongside Total / Cold / Warm / Hot
   const stats = [
     { label: "Total leads", value: dashboard?.totalLeads ?? 0, accent: "from-emerald-500 to-green-500" },
     { label: "Cold", value: dashboard?.coldLeads ?? 0, accent: "from-amber-500 to-orange-500" },
     { label: "Warm", value: dashboard?.warmLeads ?? 0, accent: "from-violet-500 to-fuchsia-500" },
     { label: "Hot", value: dashboard?.hotLeads ?? 0, accent: "from-rose-500 to-red-500" },
+    { label: "Converted", value: dashboard?.convertedLeads ?? 0, accent: "from-teal-500 to-cyan-500" },
+    { label: "Withdrawn", value: dashboard?.withdrawnLeads ?? 0, accent: "from-slate-500 to-slate-400" },
   ];
 
   const workflow = [
@@ -62,7 +65,7 @@ const DashboardPage = () => {
         <div className="mt-6 inline-flex rounded-full bg-white/15 px-4 py-2 text-sm font-medium">Your role: {roleLabel}</div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         {stats.map((item) => (
           <div key={item.label} className="rounded-[24px] border border-emerald-100 bg-white p-5 shadow-sm">
             <div className={`h-2 w-20 rounded-full bg-gradient-to-r ${item.accent}`} />

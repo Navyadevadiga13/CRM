@@ -1,10 +1,15 @@
 import bcrypt from "bcryptjs";
-import User from "../models/User.js";
+import User, { DIVISIONS } from "../models/User.js";
 
 /*
 |--------------------------------------------------------------------------
 | Role Hierarchy
 |--------------------------------------------------------------------------
+| - Regional Head creates City Heads *and* Partners.
+| - Partner creates no one (Partners aren't responsible for hiring/lead
+|   management, only for owning cities). Previously this incorrectly
+|   allowed Partner -> City Head, which conflicts with "City Heads are
+|   created by the Regional Head."
 */
 
 const roleHierarchy = {
@@ -12,24 +17,21 @@ const roleHierarchy = {
     "co_admin",
     "regional_head",
     "partner",
-    "city_head",
     "data_entry",
   ],
 
   co_admin: [
     "regional_head",
     "partner",
-    "city_head",
     "data_entry",
   ],
 
   regional_head: [
+    "city_head",
     "partner",
   ],
 
-  partner: [
-    "city_head",
-  ],
+  partner: [],
 
   city_head: [],
 
@@ -65,6 +67,54 @@ const isValidCityForRegion = (city, region) => {
   return allowedCities.includes(city);
 };
 
+const needsRegion = (role) =>
+  role === "regional_head" || role === "partner" || role === "city_head";
+
+/*
+|--------------------------------------------------------------------------
+| Role-based user scoping
+|--------------------------------------------------------------------------
+| Mirrors isStudentInScope in studentController.js: route-level `authorize`
+| only confirms the caller's role is generally allowed to hit this endpoint,
+| not that the *specific target user* is in their territory. Without this,
+| a Regional Head could edit/toggle a Partner or City Head in a different
+| region, and a Partner could edit any City Head account system-wide.
+*/
+const isUserInScope = (actor, target) => {
+  switch (actor.role) {
+    case "super_admin":
+      return true;
+
+    case "co_admin":
+      // Co-Admins never manage the Super Admin or other Co-Admins.
+      if (target.role === "super_admin" || target.role === "co_admin") {
+        return false;
+      }
+      // If this Co-Admin has a division set, scope to users whose region
+      // matches it. data_entry has no region field today, so division
+      // scoping can't reach them yet — see the note in getUsers.
+      if (actor.division && target.region) {
+        return target.region === actor.division;
+      }
+      return true;
+
+    case "regional_head":
+      return (
+        target.region === actor.region &&
+        (target.role === "partner" || target.role === "city_head")
+      );
+
+    case "partner":
+      return (
+        target.role === "city_head" &&
+        (actor.cities || []).includes(target.city)
+      );
+
+    default:
+      return false;
+  }
+};
+
 /*
 |--------------------------------------------------------------------------
 | Create User
@@ -80,6 +130,7 @@ export const createUser = async (req, res) => {
       password,
       role,
       region,
+      division,
       city,
       cities,
     } = req.body;
@@ -126,9 +177,21 @@ export const createUser = async (req, res) => {
       });
     }
 
-    // Region validation
+    // Division validation (Co-Admin only)
+    if (role === "co_admin") {
+      if (!division || !DIVISIONS.includes(division.trim())) {
+        return res.status(400).json({
+          success: false,
+          message: "A valid division is required for a Co-Admin.",
+        });
+      }
+    }
+
+    // Region validation — now also required for City Head, since a City
+    // Head's region is auto-derived/assigned at creation time (see User.js
+    // model comment) rather than left null.
     if (
-      (role === "regional_head" || role === "partner") &&
+      needsRegion(role) &&
       (!region || !VALID_REGIONS.includes(region.trim()))
     ) {
       return res.status(400).json({
@@ -180,20 +243,28 @@ export const createUser = async (req, res) => {
     // Existing user check
     const normalizedEmail = email.toLowerCase().trim();
     const normalizedPhone = phone.trim();
-    const existingUser = await User.findOne({
-      $or: [
-        { email: normalizedEmail },
-        { phone: normalizedPhone },
-      ],
-    });
 
-    if (existingUser) {
-      const duplicateField = existingUser.email === normalizedEmail ? "email" : "phone";
+    // Check email and phone independently instead of a single combined
+    // $or query. A combined query can return the wrong document when an
+    // email conflict and a phone conflict exist on two *different* users,
+    // causing the wrong "already exists" message (or a false positive)
+    // depending on which field happened to match on the returned doc.
+    const [emailTaken, phoneTaken] = await Promise.all([
+      User.findOne({ email: normalizedEmail }),
+      User.findOne({ phone: normalizedPhone }),
+    ]);
+
+    if (emailTaken) {
       return res.status(409).json({
         success: false,
-        message: duplicateField === "email"
-          ? "A user with this email already exists."
-          : "A user with this phone already exists.",
+        message: "A user with this email already exists.",
+      });
+    }
+
+    if (phoneTaken) {
+      return res.status(409).json({
+        success: false,
+        message: "A user with this phone already exists.",
       });
     }
 
@@ -208,10 +279,9 @@ export const createUser = async (req, res) => {
       password: hashedPassword,
       role,
 
-      region:
-        role === "regional_head" || role === "partner"
-          ? region.trim()
-          : null,
+      region: needsRegion(role) ? region.trim() : null,
+
+      division: role === "co_admin" ? division.trim() : null,
 
       city:
         role === "city_head"
@@ -236,6 +306,7 @@ export const createUser = async (req, res) => {
       phone: user.phone,
       role: user.role,
       region: user.region,
+      division: user.division,
       city: user.city,
       cities: user.cities,
       isActive: user.isActive,
@@ -275,6 +346,24 @@ export const getUsers = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const filter = {};
+
+    // Co-Admin: scoped to their own division, and can never see the
+    // Super Admin or other Co-Admins.
+    // NOTE: only regional_head / partner / city_head carry a `region`
+    // field today. data_entry has no region/division of its own, so a
+    // division-scoped Co-Admin currently won't see data_entry users in
+    // this filter. If Co-Admins need to manage their division's data
+    // entry staff too, data_entry will need a region/division field (or
+    // this filter needs to resolve it via createdBy) — flagging this as
+    // a follow-up rather than guessing at the intended behavior.
+    if (loggedInUser.role === "co_admin") {
+      filter.role = {
+        $in: ["regional_head", "partner", "city_head", "data_entry"],
+      };
+      if (loggedInUser.division) {
+        filter.region = loggedInUser.division;
+      }
+    }
 
     // Regional Head
     if (loggedInUser.role === "regional_head") {
@@ -354,6 +443,13 @@ export const getUserById = async (req, res) => {
 
     }
 
+    if (!isUserInScope(req.user, user)) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have access to this user.",
+      });
+    }
+
     res.status(200).json({
       success: true,
       user,
@@ -384,6 +480,7 @@ export const updateUser = async (req, res) => {
       name,
       phone,
       region,
+      division,
       city,
       cities,
       isActive,
@@ -395,6 +492,13 @@ export const updateUser = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "User not found.",
+      });
+    }
+
+    if (!isUserInScope(req.user, user)) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have access to this user.",
       });
     }
 
@@ -418,12 +522,50 @@ export const updateUser = async (req, res) => {
   }
       user.phone = phone.trim();
     }
+
+    if (user.role === "co_admin") {
+      if (division) {
+        const trimmedDivision = division.trim();
+        if (!DIVISIONS.includes(trimmedDivision)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid division.",
+          });
+        }
+        user.division = trimmedDivision;
+      }
+    }
+
     if (
       user.role === "regional_head" ||
-      user.role === "partner"
+      user.role === "partner" ||
+      user.role === "city_head"
     ) {
       if (region) {
-        user.region = region;
+        const trimmedRegion = region.trim();
+        if (!VALID_REGIONS.includes(trimmedRegion)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid region.",
+          });
+        }
+
+        // If a City Head's region changes, their existing city must still
+        // be valid for the new region — otherwise we'd end up with a
+        // city/region pair that fails isValidCityForRegion everywhere else.
+        if (
+          user.role === "city_head" &&
+          user.city &&
+          !isValidCityForRegion(user.city, trimmedRegion)
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Cannot change region: current city is not valid for the new region. Update the city in the same request.",
+          });
+        }
+
+        user.region = trimmedRegion;
       }
     }
 
@@ -527,6 +669,13 @@ export const toggleUserStatus = async (req, res) => {
       });
     }
 
+    if (!isUserInScope(req.user, user)) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have access to this user.",
+      });
+    }
+
     user.isActive = !user.isActive;
 
     user.updatedBy = req.user._id;
@@ -603,6 +752,13 @@ export const deleteUser = async (req, res) => {
         message: "You cannot delete your own account.",
       });
 
+    }
+
+    if (!isUserInScope(req.user, user)) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have access to this user.",
+      });
     }
 
     await User.findByIdAndDelete(req.params.id);

@@ -1,8 +1,12 @@
 import mongoose from "mongoose";
 
-
-
 const VALID_REGIONS = ["North India", "South India", "Nepal Region"];
+
+// Divisions are the top-level areas a Co-Admin is scoped to.
+// Kept separate from VALID_REGIONS because a Co-Admin's division
+// (e.g. "International") doesn't necessarily map to a Regional
+// Head's operating region.
+const VALID_DIVISIONS = ["North India", "South India", "International"];
 
 const userSchema = new mongoose.Schema(
   {
@@ -57,6 +61,14 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Only set for role = "co_admin". Scopes a Co-Admin to a single
+    // division (e.g. "South India", "North India", "International").
+    division: {
+      type: String,
+      enum: VALID_DIVISIONS,
+      default: null,
+    },
+
     // Only set for role = "city_head" (single city)
     city: {
       type: String,
@@ -82,8 +94,6 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
-
-
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -102,11 +112,31 @@ const userSchema = new mongoose.Schema(
   }
 );
 
+// ---- Enforce a single Super Admin at the model level ----
+// The controller-level role hierarchy already prevents any role from
+// creating a second Super Admin via the API, but this guard protects
+// the invariant regardless of entry point (seed scripts, migrations,
+// future endpoints, direct DB tooling that still goes through Mongoose).
+userSchema.pre("save", async function (next) {
+  if (this.role === "super_admin" && (this.isNew || this.isModified("role"))) {
+    const existing = await this.constructor.findOne({
+      role: "super_admin",
+      _id: { $ne: this._id },
+    });
+    if (existing) {
+      return next(new Error("Only one Super Admin is allowed in the system."));
+    }
+  }
+  next();
+});
+
 userSchema.index({ role: 1 });
 userSchema.index({ region: 1 });
+userSchema.index({ division: 1 });
 userSchema.index({ city: 1 });
 userSchema.index({ role: 1, region: 1 });
 
 export const REGIONS = VALID_REGIONS;
+export const DIVISIONS = VALID_DIVISIONS;
 
 export default mongoose.model("User", userSchema);

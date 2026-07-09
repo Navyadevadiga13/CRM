@@ -44,9 +44,9 @@ const EditUserPage = () => {
     const { name, value } = event.target;
     setForm((prev) => {
       const next = { ...prev, [name]: value };
-      if (name === "region") {
-        if (prev.role === "city_head") next.city = "";
-        if (prev.role === "partner") next.cities = [];
+      if (name === "region" || name === "role") {
+        next.city = "";
+        next.cities = [];
       }
       return next;
     });

@@ -40,9 +40,12 @@ const CreateUserPage = () => {
     const { name, value } = event.target;
     setForm((prev) => {
       const next = { ...prev, [name]: value };
-      if (name === "region") {
-        if (prev.role === "city_head") next.city = "";
-        if (prev.role === "partner") next.cities = [];
+      // Changing the role or the region invalidates any previously chosen
+      // city/cities, since city options depend on region and city fields
+      // only apply to certain roles.
+      if (name === "region" || name === "role") {
+        next.city = "";
+        next.cities = [];
       }
       return next;
     });

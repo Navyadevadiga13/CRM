@@ -1,26 +1,21 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { deleteStudent, getStudents } from "../../api/studentApi";
-import { useAuth } from "../../context/AuthContext";
 
 const statusClasses: Record<string, string> = {
   Cold: "bg-amber-100 text-amber-700",
   Warm: "bg-violet-100 text-violet-700",
   Hot: "bg-rose-100 text-rose-700",
+  Converted: "bg-teal-100 text-teal-700",
+  Withdrawn: "bg-slate-200 text-slate-700",
 };
 
-// Matches the backend's deleteStudent authorization list.
-const CAN_DELETE_ROLES = ["super_admin", "co_admin", "regional_head", "partner"];
-
 const StudentsPage = () => {
-  const { user } = useAuth();
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState("");
   const [region, setRegion] = useState("");
-
-  const canDelete = CAN_DELETE_ROLES.includes(user?.role || "");
 
   const loadStudents = async () => {
     setLoading(true);
@@ -66,12 +61,17 @@ const StudentsPage = () => {
 
       <div className="rounded-[28px] border border-emerald-100 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap gap-3">
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-2xl border border-emerald-100 bg-white px-3 py-2 text-sm text-slate-700">
-            <option value="">All statuses</option>
-            <option value="Cold">Cold</option>
-            <option value="Warm">Warm</option>
-            <option value="Hot">Hot</option>
-          </select>
+  <select
+  value={status}
+  onChange={(e) => setStatus(e.target.value)}
+  className="rounded-2xl border border-emerald-100 bg-white px-3 py-2 text-sm text-slate-700"> 
+  <option value="">All statuses</option>
+  <option value="Cold">Cold</option>
+  <option value="Warm">Warm</option>
+  <option value="Hot">Hot</option>
+  <option value="Converted">Converted</option>
+  <option value="Withdrawn">Withdrawn</option>
+</select>
           <select value={region} onChange={(e) => setRegion(e.target.value)} className="rounded-2xl border border-emerald-100 bg-white px-3 py-2 text-sm text-slate-700">
             <option value="">All regions</option>
             <option value="North India">North India</option>
@@ -117,9 +117,7 @@ const StudentsPage = () => {
                   <div className="flex flex-wrap gap-2">
                     <Link to={`/students/${student._id}`} className="text-sm font-medium text-emerald-600">View</Link>
                     <Link to={`/students/edit/${student._id}`} className="text-sm font-medium text-amber-600">Edit</Link>
-                    {canDelete ? (
-                      <button onClick={() => handleDelete(student._id)} className="text-sm font-medium text-rose-600">Delete</button>
-                    ) : null}
+                    <button onClick={() => handleDelete(student._id)} className="text-sm font-medium text-rose-600">Delete</button>
                   </div>
                 </td>
               </tr>

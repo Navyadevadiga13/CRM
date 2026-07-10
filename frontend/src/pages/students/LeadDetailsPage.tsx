@@ -300,5 +300,4 @@ const LeadDetailsPage = () => {
     </div>
   );
 };
-
 export default LeadDetailsPage;

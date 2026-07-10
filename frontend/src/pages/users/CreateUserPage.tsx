@@ -13,10 +13,21 @@ const roleGuide = {
   data_entry: "Data entry captures new student inquiries and keeps the lead record accurate.",
 };
 
-const cityOptionsByRegion = {
-  "North India": ["Delhi", "Noida", "Jaipur", "Lucknow", "Chandigarh"],
-  "South India": ["Bangalore", "Hyderabad", "Chennai", "Kochi", "Mangalore"],
-  "Nepal Region": ["Kathmandu", "Pokhara", "Lalitpur"],
+const CITIES_BY_REGION: Record<string, string[]> = {
+  "Delhi NCR": ["Delhi", "Noida", "Gurugram", "Faridabad", "Ghaziabad"],
+  "Uttar Pradesh": ["Lucknow", "Kanpur", "Varanasi", "Agra", "Prayagraj"],
+  Punjab: ["Ludhiana", "Amritsar", "Jalandhar", "Patiala"],
+  Haryana: ["Panipat", "Karnal", "Hisar", "Rohtak"],
+  Rajasthan: ["Jaipur", "Jodhpur", "Udaipur", "Kota"],
+
+  "Coastal Karnataka": ["Mangaluru", "Udupi", "Karwar"],
+  "North Karnataka": ["Hubballi", "Belagavi", "Kalaburagi", "Vijayapura"],
+  "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Tiruchirappalli"],
+  Kerala: ["Kochi", "Thiruvananthapuram", "Kozhikode", "Kottayam"],
+  Telangana: ["Hyderabad", "Warangal", "Nizamabad"],
+
+  Nepal: ["Kathmandu", "Pokhara", "Lalitpur", "Biratnagar"],
+  Dubai: ["Dubai", "Sharjah", "Abu Dhabi"],
 };
 
 const CreateUserPage = () => {
@@ -54,7 +65,9 @@ const CreateUserPage = () => {
   const handleCityToggle = (city: string) => {
     setForm((prev) => ({
       ...prev,
-      cities: prev.cities.includes(city) ? prev.cities.filter((item) => item !== city) : [...prev.cities, city],
+      cities: prev.cities.includes(city)
+        ? prev.cities.filter((item) => item !== city)
+        : [...prev.cities, city],
     }));
   };
 
@@ -79,7 +92,7 @@ const CreateUserPage = () => {
   const showRegion = useMemo(() => ["regional_head", "partner", "co_admin", "city_head"].includes(form.role), [form.role]);
   const showCity = form.role === "city_head";
   const showCities = form.role === "partner";
-  const cityOptions = useMemo(() => (form.region ? cityOptionsByRegion[form.region as keyof typeof cityOptionsByRegion] || [] : []), [form.region]);
+  const cityOptions = useMemo(() => (form.region ? CITIES_BY_REGION[form.region] || [] : []), [form.region]);
 
   const allowedRoles = useMemo(() => {
     switch (user?.role) {
@@ -141,9 +154,24 @@ const CreateUserPage = () => {
             <label className="block text-sm font-medium text-slate-700">Region</label>
             <select name="region" value={form.region} onChange={handleChange} className="w-full rounded-2xl border border-emerald-100 bg-emerald-50/40 px-3 py-3 text-slate-700 outline-none transition focus:border-emerald-500 focus:bg-white">
               <option value="">Select region</option>
-              <option value="North India">North India</option>
-              <option value="South India">South India</option>
-              <option value="Nepal Region">Nepal Region</option>
+              <optgroup label="North India">
+                <option value="Delhi NCR">Delhi NCR</option>
+                <option value="Uttar Pradesh">Uttar Pradesh</option>
+                <option value="Punjab">Punjab</option>
+                <option value="Haryana">Haryana</option>
+                <option value="Rajasthan">Rajasthan</option>
+              </optgroup>
+              <optgroup label="South India">
+                <option value="Coastal Karnataka">Coastal Karnataka</option>
+                <option value="North Karnataka">North Karnataka</option>
+                <option value="Tamil Nadu">Tamil Nadu</option>
+                <option value="Kerala">Kerala</option>
+                <option value="Telangana">Telangana</option>
+              </optgroup>
+              <optgroup label="International">
+                <option value="Nepal">Nepal</option>
+                <option value="Dubai">Dubai</option>
+              </optgroup>
             </select>
           </div>
         ) : null}
@@ -163,14 +191,59 @@ const CreateUserPage = () => {
         {showCities ? (
           <div className="space-y-2 md:col-span-2">
             <label className="block text-sm font-medium text-slate-700">Cities</label>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {cityOptions.map((city) => (
-                <label key={city} className="flex items-center gap-2 rounded-2xl border border-emerald-100 bg-emerald-50/40 px-3 py-2 text-sm text-slate-700">
-                  <input type="checkbox" checked={form.cities.includes(city)} onChange={() => handleCityToggle(city)} className="h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500" />
-                  {city}
-                </label>
-              ))}
-            </div>
+
+            {!form.region ? (
+              <p className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/40 px-4 py-3 text-sm text-slate-500">
+                Select a region first to choose cities.
+              </p>
+            ) : (
+              <div className="rounded-2xl border border-emerald-100 bg-white">
+                {form.cities.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 border-b border-emerald-100 bg-emerald-50/40 px-3 py-2.5">
+                    {form.cities.map((city) => (
+                      <span
+                        key={city}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1 text-xs font-medium text-white"
+                      >
+                        {city}
+                        <button
+                          type="button"
+                          onClick={() => handleCityToggle(city)}
+                          className="rounded-full text-emerald-100 transition hover:text-white"
+                          aria-label={`Remove ${city}`}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+
+                <div className="max-h-56 divide-y divide-emerald-50 overflow-y-auto">
+                  {cityOptions.map((city) => {
+                    const checked = form.cities.includes(city);
+                    return (
+                      <label
+                        key={city}
+                        className={`flex cursor-pointer items-center justify-between px-4 py-2.5 text-sm transition ${
+                          checked ? "bg-emerald-50/70 text-emerald-800" : "text-slate-700 hover:bg-emerald-50/40"
+                        }`}
+                      >
+                        <span>{city}</span>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => handleCityToggle(city)}
+                          className="h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <p className="text-xs text-slate-500">{form.cities.length > 0 ? `${form.cities.length} ${form.cities.length === 1 ? "city" : "cities"} selected` : "No cities selected yet."}</p>
           </div>
         ) : null}
 
@@ -187,5 +260,4 @@ const CreateUserPage = () => {
     </div>
   );
 };
-
 export default CreateUserPage;

@@ -4,7 +4,6 @@ import {
   isValidRegion,
   isValidCityForRegion,
 } from "../utils/regions.js";
-
 /*
 |--------------------------------------------------------------------------
 | Role Hierarchy
@@ -13,7 +12,6 @@ import {
 | - Partner creates no one (Partners aren't responsible for hiring/lead
 |   management, only for owning cities).
 */
-
 const roleHierarchy = {
   super_admin: [
     "co_admin",
@@ -28,25 +26,19 @@ const roleHierarchy = {
     "data_entry",
     "city_head"
   ],
-
   regional_head: [
     "city_head",
     "partner",
   ],
-
   partner: [],
-
   city_head: [],
-
   data_entry: [],
 };
-
 /*
 |--------------------------------------------------------------------------
 | Helpers
 |--------------------------------------------------------------------------
 */
-
 const isValidEmail = (email) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
@@ -55,7 +47,6 @@ const isValidPhone = (phone) =>
 
 const needsRegion = (role) =>
   role === "regional_head" || role === "partner" || role === "city_head";
-
 /*
 |--------------------------------------------------------------------------
 | Role-based user scoping

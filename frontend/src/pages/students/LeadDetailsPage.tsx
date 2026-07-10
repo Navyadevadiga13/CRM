@@ -6,6 +6,41 @@ import { useAuth } from "../../context/AuthContext";
 const STATUS_OPTIONS = ["Cold", "Warm", "Hot", "Converted", "Withdrawn"];
 const INTAKE_OPTIONS = [6, 12, 18, 24];
 
+const COUNTRIES = [
+  "Australia",
+  "Austria",
+  "Canada",
+  "Cyprus",
+  "Czech Republic",
+  "Denmark",
+  "Dubai (UAE)",
+  "Finland",
+  "France",
+  "Germany",
+  "Hungary",
+  "Ireland",
+  "Italy",
+  "Japan",
+  "Latvia",
+  "Lithuania",
+  "Malaysia",
+  "Malta",
+  "Netherlands",
+  "New Zealand",
+  "Norway",
+  "Poland",
+  "Portugal",
+  "Singapore",
+  "Slovakia",
+  "South Korea",
+  "Spain",
+  "Sweden",
+  "Switzerland",
+  "United Kingdom",
+  "United States",
+  "Other",
+];
+
 // Only these roles can change lead status at all (matches backend route).
 const CAN_UPDATE_STATUS_ROLES = ["super_admin", "co_admin", "city_head"];
 
@@ -21,6 +56,7 @@ const LeadDetailsPage = () => {
     destinationCountry: "",
     withdrawalReason: "",
   });
+  const [otherDestinationCountry, setOtherDestinationCountry] = useState("");
   const [statusError, setStatusError] = useState("");
   const [statusSaving, setStatusSaving] = useState(false);
 
@@ -45,6 +81,12 @@ const LeadDetailsPage = () => {
 
   const handleStatusFormChange = (event: any) => {
     const { name, value } = event.target;
+
+    if (name === "destinationCountry" && value !== "Other") {
+      // Clear any typed custom country if the user switches away from "Other"
+      setOtherDestinationCountry("");
+    }
+
     setStatusForm((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -65,11 +107,16 @@ const LeadDetailsPage = () => {
     }
 
     if (statusForm.leadStatus === "Converted") {
-      if (!statusForm.destinationCountry.trim()) {
+      const resolvedDestinationCountry =
+        statusForm.destinationCountry === "Other"
+          ? otherDestinationCountry.trim()
+          : statusForm.destinationCountry.trim();
+
+      if (!resolvedDestinationCountry) {
         setStatusError("Destination country is required to mark a lead as Converted.");
         return;
       }
-      payload.destinationCountry = statusForm.destinationCountry.trim();
+      payload.destinationCountry = resolvedDestinationCountry;
     }
 
     if (statusForm.leadStatus === "Withdrawn") {
@@ -194,12 +241,26 @@ const LeadDetailsPage = () => {
                 {statusForm.leadStatus === "Converted" ? (
                   <div>
                     <label className="mb-2 block text-sm font-medium text-slate-700">Destination country</label>
-                    <input
+                    <select
                       name="destinationCountry"
                       value={statusForm.destinationCountry}
                       onChange={handleStatusFormChange}
                       className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                    />
+                    >
+                      <option value="">Select country</option>
+                      {COUNTRIES.map((country) => (
+                        <option key={country} value={country}>{country}</option>
+                      ))}
+                    </select>
+                    {statusForm.destinationCountry === "Other" ? (
+                      <input
+                        name="otherDestinationCountry"
+                        value={otherDestinationCountry}
+                        onChange={(e) => setOtherDestinationCountry(e.target.value)}
+                        placeholder="Enter country"
+                        className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                      />
+                    ) : null}
                   </div>
                 ) : null}
 

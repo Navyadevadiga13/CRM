@@ -44,12 +44,12 @@ const DashboardPage = () => {
             : "Keep the entire consultancy operation aligned and visible.";
 
   const stats = [
-    { label: "Total leads", value: dashboard?.totalLeads ?? 0, accent: "bg-emerald-500" },
-    { label: "Cold", value: dashboard?.coldLeads ?? 0, accent: "bg-amber-500" },
-    { label: "Warm", value: dashboard?.warmLeads ?? 0, accent: "bg-fuchsia-500" },
-    { label: "Hot", value: dashboard?.hotLeads ?? 0, accent: "bg-rose-500" },
-    { label: "Converted", value: dashboard?.convertedLeads ?? 0, accent: "bg-teal-500" },
-    { label: "Withdrawn", value: dashboard?.withdrawnLeads ?? 0, accent: "bg-slate-400" },
+    { label: "Total leads", value: dashboard?.totalLeads ?? 0, accent: "bg-purple-500" },
+    { label: "Cold", value: dashboard?.coldLeads ?? 0, accent: "bg-red-500" },
+    { label: "Warm", value: dashboard?.warmLeads ?? 0, accent: "bg-yellow-500" },
+    { label: "Hot", value: dashboard?.hotLeads ?? 0, accent: "bg-green-500" },
+    { label: "Converted", value: dashboard?.convertedLeads ?? 0, accent: "bg-blue-500" },
+    { label: "Withdrawn", value: dashboard?.withdrawnLeads ?? 0, accent: "bg-gray-400" },
   ];
 
   const workflow = [

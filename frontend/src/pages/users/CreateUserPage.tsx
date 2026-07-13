@@ -5,7 +5,7 @@ import { createUser } from "../../api/userApi";
 import { useAuth } from "../../context/AuthContext";
 
 const roleGuide = {
-  super_admin: "Super admin can create co-admins, regional heads, partners, city heads, and data-entry users.",
+  super_admin: "Super admin has full access and can create any role — other super admins, co-admins, regional heads, partners, city heads, and data-entry users.",
   co_admin: "Co admin owns a zone (South India, North India, or International) and can create regional heads, partners, city heads, and data-entry users within it.",
   regional_head: "Regional head can create partners for their region.",
   partner: "Partner can create city heads for the cities they manage.",

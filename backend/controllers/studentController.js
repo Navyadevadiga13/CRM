@@ -1,6 +1,7 @@
 import Student from "../models/Student.js";
 import User from "../models/User.js";
 import { handleLeadCreated } from "../services/automation/leadCreated.js";
+
 const VALID_REGIONS = [
   "North India",
   "South India",

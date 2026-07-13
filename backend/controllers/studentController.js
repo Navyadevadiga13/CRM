@@ -489,16 +489,23 @@ export const updateStudent = async (req, res) => {
       student.phone = phone.trim();
     }
 
-    // Region
-    if (region) {
-      if (!isValidRegion(region.trim())) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid region.",
-        });
-      }
+    // Region — only validate/apply if the caller is actually changing it.
+    // Re-submitting the lead's *current* region (e.g. because the edit form
+    // resends the whole object) should never trip "Invalid region", even if
+    // that stored value happens to predate the current regions.js list.
+    if (region !== undefined) {
+      const trimmedRegion = region.trim();
 
-      student.region = region.trim();
+      if (trimmedRegion !== (student.region || "")) {
+        if (trimmedRegion && !isValidRegion(trimmedRegion)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid region.",
+          });
+        }
+
+        student.region = trimmedRegion || null;
+      }
     }
 
     // City — a City Head can't move a lead out of their own city (that
@@ -527,7 +534,7 @@ export const updateStudent = async (req, res) => {
 
     // Preferred Country
     if (preferredCountry !== undefined) {
-      student.preferredCountry = preferredCountry.trim();
+      student.preferredCountry = (preferredCountry || "").trim();
     }
 
     // Remarks

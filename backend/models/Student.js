@@ -167,7 +167,9 @@ const studentSchema = new mongoose.Schema(
 // Only validates the mandatory fields for whichever status is being set —
 // no requirement that the lead passed through any particular prior status.
 studentSchema.pre("validate", function (next) {
-  // Warm: require an intake period and auto-calc the follow-up date
+  // Warm: require an intake period and auto-calc the follow-up date —
+  // exactly 7 days *before* the selected intake period, so staff have a
+  // buffer to follow up ahead of the student's target start date.
   if (this.leadStatus === "Warm") {
     if (!this.expectedIntake) {
       return next(
@@ -176,6 +178,7 @@ studentSchema.pre("validate", function (next) {
     }
     const base = new Date();
     base.setMonth(base.getMonth() + this.expectedIntake);
+    base.setDate(base.getDate() - 7);
     this.followUpDate = base;
   }
 

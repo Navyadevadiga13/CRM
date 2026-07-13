@@ -1,103 +1,65 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { createStudent } from "../../api/studentApi";
+// ---------------------------------------------------------------------------
+export const DIVISIONS = ["North India", "South India", "International"];
+export const REGIONS_BY_DIVISION = {
+  "North India": [
+    "Delhi NCR",
+    "Uttar Pradesh",
+    "Punjab",
+    "Haryana",
+    "Rajasthan",
+  ],
 
-const CreateStudentPage = () => {
-  const navigate = useNavigate();
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    studyPreference: "",
-    preferredCountry: "",
-    region: "",
-    city: "",
-    remarks: "",
-    followUpDate: "",
-  });
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  "South India": [
+    "Coastal Karnataka",
+    "North Karnataka",
+    "Tamil Nadu",
+    "Kerala",
+    "Telangana",
+  ],
 
-  const handleChange = (event: any) => {
-    const { name, value } = event.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (event: any) => {
-    event.preventDefault();
-    setLoading(true);
-    setError("");
-
-    try {
-      await createStudent(form);
-      navigate("/students");
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Unable to create lead");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="mx-auto max-w-4xl rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-      <h1 className="text-2xl font-semibold text-slate-900">Create lead</h1>
-      <p className="mt-2 text-sm text-slate-500">Capture a new lead and plan its next follow-up.</p>
-
-      <form onSubmit={handleSubmit} className="mt-8 grid gap-4 md:grid-cols-2">
-        {error ? <div className="md:col-span-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div> : null}
-
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">Name</label>
-          <input name="name" value={form.name} onChange={handleChange} required className="w-full rounded-xl border border-slate-200 px-3 py-2" />
-        </div>
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">Email</label>
-          <input name="email" type="email" value={form.email} onChange={handleChange} required className="w-full rounded-xl border border-slate-200 px-3 py-2" />
-        </div>
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">Phone</label>
-          <input name="phone" value={form.phone} onChange={handleChange} required className="w-full rounded-xl border border-slate-200 px-3 py-2" />
-        </div>
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">Study preference</label>
-          <select name="studyPreference" value={form.studyPreference} onChange={handleChange} required className="w-full rounded-xl border border-slate-200 px-3 py-2">
-            <option value="">Select preference</option>
-            <option value="Study in India">Study in India</option>
-            <option value="Study Abroad">Study Abroad</option>
-          </select>
-        </div>
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">Preferred country</label>
-          <input name="preferredCountry" value={form.preferredCountry} onChange={handleChange} className="w-full rounded-xl border border-slate-200 px-3 py-2" />
-        </div>
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">Region</label>
-          <select name="region" value={form.region} onChange={handleChange} className="w-full rounded-xl border border-slate-200 px-3 py-2">
-            <option value="">Select region</option>
-            <option value="North India">North India</option>
-            <option value="South India">South India</option>
-            <option value="Nepal Region">Nepal Region</option>
-          </select>
-        </div>
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">City</label>
-          <input name="city" value={form.city} onChange={handleChange} required className="w-full rounded-xl border border-slate-200 px-3 py-2" />
-        </div>
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">Follow-up date</label>
-          <input name="followUpDate" type="date" value={form.followUpDate} onChange={handleChange} className="w-full rounded-xl border border-slate-200 px-3 py-2" />
-        </div>
-        <div className="md:col-span-2">
-          <label className="mb-2 block text-sm font-medium text-slate-700">Remarks</label>
-          <textarea name="remarks" rows={4} value={form.remarks} onChange={handleChange} className="w-full rounded-xl border border-slate-200 px-3 py-2" />
-        </div>
-        <div className="md:col-span-2 flex justify-end gap-3">
-          <button type="button" onClick={() => navigate("/students")} className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Cancel</button>
-          <button type="submit" disabled={loading} className="rounded-full bg-cyan-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-70">{loading ? "Saving..." : "Create lead"}</button>
-        </div>
-      </form>
-    </div>
-  );
+  International: [
+    "Nepal",
+    "Dubai",
+  ],
 };
 
-export default CreateStudentPage;
+export const CITIES_BY_REGION = {
+  "Delhi NCR": ["Delhi", "Noida", "Gurugram", "Faridabad", "Ghaziabad"],
+  "Uttar Pradesh": ["Lucknow", "Kanpur", "Varanasi", "Agra", "Prayagraj"],
+  Punjab: ["Ludhiana", "Amritsar", "Jalandhar", "Patiala"],
+  Haryana: ["Panipat", "Karnal", "Hisar", "Rohtak"],
+  Rajasthan: ["Jaipur", "Jodhpur", "Udaipur", "Kota"],
+
+  "Coastal Karnataka": ["Mangaluru", "Udupi", "Karwar"],
+  "North Karnataka": ["Hubballi", "Belagavi", "Kalaburagi", "Vijayapura"],
+  "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Tiruchirappalli"],
+  Kerala: ["Kochi", "Thiruvananthapuram", "Kozhikode", "Kottayam"],
+  Telangana: ["Hyderabad", "Warangal", "Nizamabad"],
+
+  Nepal: ["Kathmandu", "Pokhara", "Lalitpur", "Biratnagar"],
+  Dubai: ["Dubai", "Sharjah", "Abu Dhabi"],
+};
+
+// Flattened list of every valid region, regardless of division — used
+// wherever we just need to know "is this a recognized region".
+export const ALL_REGIONS = Object.values(REGIONS_BY_DIVISION).flat();
+
+export const isValidRegion = (region) => ALL_REGIONS.includes(region);
+
+// Given a region (e.g. "Uttar Pradesh"), returns the division it belongs
+// to (e.g. "North India"), or null if unrecognized.
+export const getDivisionForRegion = (region) => {
+  for (const [division, regions] of Object.entries(REGIONS_BY_DIVISION)) {
+    if (regions.includes(region)) {
+      return division;
+    }
+  }
+  return null;
+};
+
+// Given a region, returns the cities that belong to it (empty array if the
+// region is unrecognized or has no cities configured yet).
+export const getCitiesForRegion = (region) => CITIES_BY_REGION[region] || [];
+
+export const isValidCityForRegion = (city, region) =>
+  getCitiesForRegion(region).includes(city);

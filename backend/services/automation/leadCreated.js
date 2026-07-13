@@ -1,5 +1,5 @@
 import { logLeadActivity } from "./leadActivity.js";
-
+import { createNotification } from "./notificationService.js";
 export const handleLeadCreated = async (student, user) => {
   console.log("================================");
   console.log("LEAD CREATED AUTOMATION STARTED");
@@ -9,5 +9,17 @@ export const handleLeadCreated = async (student, user) => {
   console.log("Phone:", student.phone);
   console.log("================================");
 
-  await logLeadActivity(student, "Lead Created", user?.name || "System");
+  await logLeadActivity(
+     student,
+     "Lead Created",
+     "Lead entered into CRM",
+     user?.name || "System"
+);
+await createNotification({
+  recipient: user._id,
+  relatedStudent: student._id,
+  type: "lead",
+  title: "Lead Created",
+  message: `new lead was added to the CRM.`,
+});
 };

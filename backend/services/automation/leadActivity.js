@@ -3,13 +3,15 @@ import LeadActivity from "../../models/LeadActivity.js";
 export const logLeadActivity = async (
   student,
   action,
+  details = "",
   performedBy = "System"
 ) => {
   try {
     await LeadActivity.create({
-      student: student._id,
-      action,
-      performedBy,
+        student: student._id,
+        action,
+        details,
+        performedBy,
     });
 
     console.log("[Automation] Activity saved:", action);

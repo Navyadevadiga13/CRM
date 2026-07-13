@@ -2,6 +2,7 @@ import Student from "../models/Student.js";
 import User from "../models/User.js";
 import { handleLeadCreated } from "../services/automation/leadCreated.js";
 import { isValidRegion } from "../utils/regions.js";
+import { logLeadActivity } from "../services/automation/leadActivity.js";
 
 const VALID_STATUS = [
   "Cold",
@@ -612,7 +613,7 @@ export const updateLeadStatus = async (req, res) => {
     }
 
     const student = await Student.findById(req.params.id);
-
+    const previousStatus = student.leadStatus;
     if (!student) {
       return res.status(404).json({
         success: false,
@@ -698,11 +699,20 @@ export const updateLeadStatus = async (req, res) => {
       student.withdrawalReason = withdrawalReason.trim();
       student.withdrawalDate = new Date();
     }
-
+    
     student.leadStatus = leadStatus;
     student.updatedBy = req.user._id;
 
     await student.save();
+
+    if (previousStatus !== leadStatus) {
+      await logLeadActivity(
+        student,
+        "Lead Status Changed",
+        `${previousStatus} → ${leadStatus}`,
+        req.user.name
+  );
+}
 
     res.status(200).json({
       success: true,

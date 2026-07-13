@@ -12,6 +12,11 @@ const leadActivitySchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    details: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
     performedBy: {
       type: String,

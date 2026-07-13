@@ -1,6 +1,6 @@
 import dns from "dns";
 dns.setServers(["8.8.8.8", "1.1.1.1"]);
-
+import notificationRoutes from "./routes/notificationRoutes.js";
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -34,6 +34,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/students", studentRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/activities", activityRoutes);
+app.use("/api/notifications", notificationRoutes);
 const PORT = process.env.PORT || 8080;
  
 const startServer = async () => {

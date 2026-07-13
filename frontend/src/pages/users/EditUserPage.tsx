@@ -2,10 +2,32 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getUserById, updateUser } from "../../api/userApi";
 
-const cityOptionsByRegion = {
-  "North India": ["Delhi", "Noida", "Jaipur", "Lucknow", "Chandigarh"],
-  "South India": ["Bangalore", "Hyderabad", "Chennai", "Kochi", "Mangalore"],
-  "Nepal Region": ["Kathmandu", "Pokhara", "Lalitpur"],
+// Kept in sync with CreateUserPage.tsx — same zone/region/city taxonomy so
+// create and edit forms behave identically.
+const CITIES_BY_REGION: Record<string, string[]> = {
+  "Delhi NCR": ["Delhi", "Noida", "Gurugram", "Faridabad", "Ghaziabad"],
+  "Uttar Pradesh": ["Lucknow", "Kanpur", "Varanasi", "Agra", "Prayagraj"],
+  Punjab: ["Ludhiana", "Amritsar", "Jalandhar", "Patiala"],
+  Haryana: ["Panipat", "Karnal", "Hisar", "Rohtak"],
+  Rajasthan: ["Jaipur", "Jodhpur", "Udaipur", "Kota"],
+
+  "Coastal Karnataka": ["Mangaluru", "Udupi", "Karwar"],
+  "North Karnataka": ["Hubballi", "Belagavi", "Kalaburagi", "Vijayapura"],
+  "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Tiruchirappalli"],
+  Kerala: ["Kochi", "Thiruvananthapuram", "Kozhikode", "Kottayam"],
+  Telangana: ["Hyderabad", "Warangal", "Nizamabad"],
+
+  Nepal: ["Kathmandu", "Pokhara", "Lalitpur", "Biratnagar"],
+  Dubai: ["Dubai", "Sharjah", "Abu Dhabi"],
+};
+
+// Zone -> the granular regions that fall under it. Co-admins are scoped to
+// a whole zone; regional heads (and partners/city heads) pick a granular
+// region within a zone.
+const ZONES: Record<string, string[]> = {
+  "North India": ["Delhi NCR", "Uttar Pradesh", "Punjab", "Haryana", "Rajasthan"],
+  "South India": ["Coastal Karnataka", "North Karnataka", "Tamil Nadu", "Kerala", "Telangana"],
+  International: ["Nepal", "Dubai"],
 };
 
 const EditUserPage = () => {
@@ -70,10 +92,11 @@ const EditUserPage = () => {
     }
   };
 
+  const isCoAdmin = form.role === "co_admin";
   const showRegion = useMemo(() => ["regional_head", "partner", "co_admin", "city_head"].includes(form.role), [form.role]);
   const showCity = form.role === "city_head";
   const showCities = form.role === "partner";
-  const cityOptions = useMemo(() => (form.region ? cityOptionsByRegion[form.region as keyof typeof cityOptionsByRegion] || [] : []), [form.region]);
+  const cityOptions = useMemo(() => (form.region ? CITIES_BY_REGION[form.region] || [] : []), [form.region]);
 
   if (loading) {
     return <div className="rounded-3xl border border-emerald-100 bg-white/90 p-6 text-sm text-slate-500 shadow-sm">Loading user...</div>;
@@ -110,13 +133,39 @@ const EditUserPage = () => {
 
         {showRegion ? (
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-700">Region</label>
+            <label className="block text-sm font-medium text-slate-700">{isCoAdmin ? "Zone" : "Region"}</label>
             <select name="region" value={form.region} onChange={handleChange} className="w-full rounded-2xl border border-emerald-100 bg-white px-3 py-3 text-slate-700 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200">
-              <option value="">Select region</option>
-              <option value="North India">North India</option>
-              <option value="South India">South India</option>
-              <option value="Nepal Region">Nepal Region</option>
+              {isCoAdmin ? (
+                <>
+                  <option value="">Select zone</option>
+                  {Object.keys(ZONES).map((zone) => (
+                    <option key={zone} value={zone}>{zone}</option>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <option value="">Select region</option>
+                  <optgroup label="North India">
+                    {ZONES["North India"].map((region) => (
+                      <option key={region} value={region}>{region}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="South India">
+                    {ZONES["South India"].map((region) => (
+                      <option key={region} value={region}>{region}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="International">
+                    {ZONES.International.map((region) => (
+                      <option key={region} value={region}>{region}</option>
+                    ))}
+                  </optgroup>
+                </>
+              )}
             </select>
+            {isCoAdmin ? (
+              <p className="text-xs text-slate-500">Co-admins are scoped to a whole zone rather than a single region.</p>
+            ) : null}
           </div>
         ) : null}
 

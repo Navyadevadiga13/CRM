@@ -14,27 +14,88 @@ const roleGuide = {
 };
 
 const CITIES_BY_REGION: Record<string, string[]> = {
+  // ==========================
+  // NORTH INDIA
+  // ==========================
   "Delhi NCR": ["Delhi", "Noida", "Gurugram", "Faridabad", "Ghaziabad"],
   "Uttar Pradesh": ["Lucknow", "Kanpur", "Varanasi", "Agra", "Prayagraj"],
   Punjab: ["Ludhiana", "Amritsar", "Jalandhar", "Patiala"],
   Haryana: ["Panipat", "Karnal", "Hisar", "Rohtak"],
   Rajasthan: ["Jaipur", "Jodhpur", "Udaipur", "Kota"],
 
-  "Coastal Karnataka": ["Mangaluru", "Udupi", "Karwar"],
-  "North Karnataka": ["Hubballi", "Belagavi", "Kalaburagi", "Vijayapura"],
-  "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Tiruchirappalli"],
-  Kerala: ["Kochi", "Thiruvananthapuram", "Kozhikode", "Kottayam"],
-  Telangana: ["Hyderabad", "Warangal", "Nizamabad"],
+  // ==========================
+  // SOUTH INDIA
+  // ==========================
+  "Coastal Karnataka": [
+    "Mangaluru",
+    "Udupi",
+    "Karwar",
+    "Manipal",
+    "Puttur",
+  ],
 
-  Nepal: ["Kathmandu", "Pokhara", "Lalitpur", "Biratnagar"],
-  Dubai: ["Dubai", "Sharjah", "Abu Dhabi"],
+  "North Karnataka": [
+    "Hubballi",
+    "Belagavi",
+    "Kalaburagi",
+    "Dharwad",
+    "Vijayapura",
+  ],
+
+  "South Karnataka": [
+    "Bengaluru North",
+    "Bengaluru South",
+    "Bengaluru HSR Layout",
+    "Mysuru",
+    "Hassan",
+    "Tumakuru",
+    "Shivamogga",
+    "Davanagere",
+    "Chikkamagaluru",
+  ],
+
+  Kerala: [
+    "Kochi",
+    "Thiruvananthapuram",
+    "Kozhikode",
+    "Kottayam",
+  ],
+
+  "Tamil Nadu": [
+    "Chennai",
+    "Coimbatore",
+    "Madurai",
+    "Tiruchirappalli",
+  ],
+
+  Telangana: [
+    "Hyderabad",
+    "Warangal",
+    "Nizamabad",
+  ],
+
+  // ==========================
+  // INTERNATIONAL
+  // ==========================
+  Nepal: [
+    "Kathmandu",
+    "Pokhara",
+    "Lalitpur",
+    "Biratnagar",
+  ],
+
+  Dubai: [
+    "Dubai",
+    "Sharjah",
+    "Abu Dhabi",
+  ],
 };
 
 // Zone -> the granular regions that fall under it. Co-admins are scoped to
 // a whole zone rather than a single granular region.
 const ZONES: Record<string, string[]> = {
   "North India": ["Delhi NCR", "Uttar Pradesh", "Punjab", "Haryana", "Rajasthan"],
-  "South India": ["Coastal Karnataka", "North Karnataka", "Tamil Nadu", "Kerala", "Telangana"],
+  "South India": ["Coastal Karnataka", "North Karnataka", "South Karnataka", "Tamil Nadu", "Kerala", "Telangana"],
   International: ["Nepal", "Dubai"],
 };
 

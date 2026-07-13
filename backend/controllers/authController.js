@@ -87,6 +87,7 @@ const safeUser = {
   phone: user.phone,
   role: user.role,
   region: user.region,
+  division: user.division,
   city: user.city,
   cities: user.cities,
   isActive: user.isActive,

@@ -5,18 +5,98 @@ import { createUser } from "../../api/userApi";
 import { useAuth } from "../../context/AuthContext";
 
 const roleGuide = {
-  super_admin: "Super admin can create co-admins, regional heads, partners, city heads, and data-entry users.",
-  co_admin: "Co admin can create regional heads, partners, city heads, and data-entry users.",
+  super_admin: "Super admin has full access and can create any role — other super admins, co-admins, regional heads, partners, city heads, and data-entry users.",
+  co_admin: "Co admin owns a zone (South India, North India, or International) and can create regional heads, partners, city heads, and data-entry users within it.",
   regional_head: "Regional head can create partners for their region.",
   partner: "Partner can create city heads for the cities they manage.",
   city_head: "City head takes ownership of assigned leads, updates follow-ups, and changes lead status.",
   data_entry: "Data entry captures new student inquiries and keeps the lead record accurate.",
 };
 
-const cityOptionsByRegion = {
-  "North India": ["Delhi", "Noida", "Jaipur", "Lucknow", "Chandigarh"],
-  "South India": ["Bangalore", "Hyderabad", "Chennai", "Kochi", "Mangalore"],
-  "Nepal Region": ["Kathmandu", "Pokhara", "Lalitpur"],
+const CITIES_BY_REGION: Record<string, string[]> = {
+  // ==========================
+  // NORTH INDIA
+  // ==========================
+  "Delhi NCR": ["Delhi", "Noida", "Gurugram", "Faridabad", "Ghaziabad"],
+  "Uttar Pradesh": ["Lucknow", "Kanpur", "Varanasi", "Agra", "Prayagraj"],
+  Punjab: ["Ludhiana", "Amritsar", "Jalandhar", "Patiala"],
+  Haryana: ["Panipat", "Karnal", "Hisar", "Rohtak"],
+  Rajasthan: ["Jaipur", "Jodhpur", "Udaipur", "Kota"],
+
+  // ==========================
+  // SOUTH INDIA
+  // ==========================
+  "Coastal Karnataka": [
+    "Mangaluru",
+    "Udupi",
+    "Karwar",
+    "Manipal",
+    "Puttur",
+  ],
+
+  "North Karnataka": [
+    "Hubballi",
+    "Belagavi",
+    "Kalaburagi",
+    "Dharwad",
+    "Vijayapura",
+  ],
+
+  "South Karnataka": [
+    "Bengaluru North",
+    "Bengaluru South",
+    "Bengaluru HSR Layout",
+    "Mysuru",
+    "Hassan",
+    "Tumakuru",
+    "Shivamogga",
+    "Davanagere",
+    "Chikkamagaluru",
+  ],
+
+  Kerala: [
+    "Kochi",
+    "Thiruvananthapuram",
+    "Kozhikode",
+    "Kottayam",
+  ],
+
+  "Tamil Nadu": [
+    "Chennai",
+    "Coimbatore",
+    "Madurai",
+    "Tiruchirappalli",
+  ],
+
+  Telangana: [
+    "Hyderabad",
+    "Warangal",
+    "Nizamabad",
+  ],
+
+  // ==========================
+  // INTERNATIONAL
+  // ==========================
+  Nepal: [
+    "Kathmandu",
+    "Pokhara",
+    "Lalitpur",
+    "Biratnagar",
+  ],
+
+  Dubai: [
+    "Dubai",
+    "Sharjah",
+    "Abu Dhabi",
+  ],
+};
+
+// Zone -> the granular regions that fall under it. Co-admins are scoped to
+// a whole zone rather than a single granular region.
+const ZONES: Record<string, string[]> = {
+  "North India": ["Delhi NCR", "Uttar Pradesh", "Punjab", "Haryana", "Rajasthan"],
+  "South India": ["Coastal Karnataka", "North Karnataka", "South Karnataka", "Tamil Nadu", "Kerala", "Telangana"],
+  International: ["Nepal", "Dubai"],
 };
 
 const CreateUserPage = () => {
@@ -40,9 +120,12 @@ const CreateUserPage = () => {
     const { name, value } = event.target;
     setForm((prev) => {
       const next = { ...prev, [name]: value };
-      if (name === "region") {
-        if (prev.role === "city_head") next.city = "";
-        if (prev.role === "partner") next.cities = [];
+      // Changing the role or the region invalidates any previously chosen
+      // city/cities, since city options depend on region and city fields
+      // only apply to certain roles.
+      if (name === "region" || name === "role") {
+        next.city = "";
+        next.cities = [];
       }
       return next;
     });
@@ -51,7 +134,9 @@ const CreateUserPage = () => {
   const handleCityToggle = (city: string) => {
     setForm((prev) => ({
       ...prev,
-      cities: prev.cities.includes(city) ? prev.cities.filter((item) => item !== city) : [...prev.cities, city],
+      cities: prev.cities.includes(city)
+        ? prev.cities.filter((item) => item !== city)
+        : [...prev.cities, city],
     }));
   };
 
@@ -73,10 +158,11 @@ const CreateUserPage = () => {
     }
   };
 
+  const isCoAdmin = form.role === "co_admin";
   const showRegion = useMemo(() => ["regional_head", "partner", "co_admin", "city_head"].includes(form.role), [form.role]);
   const showCity = form.role === "city_head";
   const showCities = form.role === "partner";
-  const cityOptions = useMemo(() => (form.region ? cityOptionsByRegion[form.region as keyof typeof cityOptionsByRegion] || [] : []), [form.region]);
+  const cityOptions = useMemo(() => (form.region ? CITIES_BY_REGION[form.region] || [] : []), [form.region]);
 
   const allowedRoles = useMemo(() => {
     switch (user?.role) {
@@ -135,13 +221,39 @@ const CreateUserPage = () => {
 
         {showRegion ? (
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-700">Region</label>
+            <label className="block text-sm font-medium text-slate-700">{isCoAdmin ? "Zone" : "Region"}</label>
             <select name="region" value={form.region} onChange={handleChange} className="w-full rounded-2xl border border-emerald-100 bg-emerald-50/40 px-3 py-3 text-slate-700 outline-none transition focus:border-emerald-500 focus:bg-white">
-              <option value="">Select region</option>
-              <option value="North India">North India</option>
-              <option value="South India">South India</option>
-              <option value="Nepal Region">Nepal Region</option>
+              {isCoAdmin ? (
+                <>
+                  <option value="">Select zone</option>
+                  {Object.keys(ZONES).map((zone) => (
+                    <option key={zone} value={zone}>{zone}</option>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <option value="">Select region</option>
+                  <optgroup label="North India">
+                    {ZONES["North India"].map((region) => (
+                      <option key={region} value={region}>{region}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="South India">
+                    {ZONES["South India"].map((region) => (
+                      <option key={region} value={region}>{region}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="International">
+                    {ZONES.International.map((region) => (
+                      <option key={region} value={region}>{region}</option>
+                    ))}
+                  </optgroup>
+                </>
+              )}
             </select>
+            {isCoAdmin ? (
+              <p className="text-xs text-slate-500">Co-admins are scoped to a whole zone rather than a single region.</p>
+            ) : null}
           </div>
         ) : null}
 
@@ -160,14 +272,59 @@ const CreateUserPage = () => {
         {showCities ? (
           <div className="space-y-2 md:col-span-2">
             <label className="block text-sm font-medium text-slate-700">Cities</label>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {cityOptions.map((city) => (
-                <label key={city} className="flex items-center gap-2 rounded-2xl border border-emerald-100 bg-emerald-50/40 px-3 py-2 text-sm text-slate-700">
-                  <input type="checkbox" checked={form.cities.includes(city)} onChange={() => handleCityToggle(city)} className="h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500" />
-                  {city}
-                </label>
-              ))}
-            </div>
+
+            {!form.region ? (
+              <p className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/40 px-4 py-3 text-sm text-slate-500">
+                Select a region first to choose cities.
+              </p>
+            ) : (
+              <div className="rounded-2xl border border-emerald-100 bg-white">
+                {form.cities.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 border-b border-emerald-100 bg-emerald-50/40 px-3 py-2.5">
+                    {form.cities.map((city) => (
+                      <span
+                        key={city}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1 text-xs font-medium text-white"
+                      >
+                        {city}
+                        <button
+                          type="button"
+                          onClick={() => handleCityToggle(city)}
+                          className="rounded-full text-emerald-100 transition hover:text-white"
+                          aria-label={`Remove ${city}`}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+
+                <div className="max-h-56 divide-y divide-emerald-50 overflow-y-auto">
+                  {cityOptions.map((city) => {
+                    const checked = form.cities.includes(city);
+                    return (
+                      <label
+                        key={city}
+                        className={`flex cursor-pointer items-center justify-between px-4 py-2.5 text-sm transition ${
+                          checked ? "bg-emerald-50/70 text-emerald-800" : "text-slate-700 hover:bg-emerald-50/40"
+                        }`}
+                      >
+                        <span>{city}</span>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => handleCityToggle(city)}
+                          className="h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <p className="text-xs text-slate-500">{form.cities.length > 0 ? `${form.cities.length} ${form.cities.length === 1 ? "city" : "cities"} selected` : "No cities selected yet."}</p>
           </div>
         ) : null}
 
@@ -184,5 +341,4 @@ const CreateUserPage = () => {
     </div>
   );
 };
-
 export default CreateUserPage;

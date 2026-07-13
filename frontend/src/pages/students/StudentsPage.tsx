@@ -64,8 +64,7 @@ const StudentsPage = () => {
   <select
   value={status}
   onChange={(e) => setStatus(e.target.value)}
-  className="rounded-2xl border border-emerald-100 bg-white px-3 py-2 text-sm text-slate-700">
-  
+  className="rounded-2xl border border-emerald-100 bg-white px-3 py-2 text-sm text-slate-700"> 
   <option value="">All statuses</option>
   <option value="Cold">Cold</option>
   <option value="Warm">Warm</option>
@@ -75,9 +74,24 @@ const StudentsPage = () => {
 </select>
           <select value={region} onChange={(e) => setRegion(e.target.value)} className="rounded-2xl border border-emerald-100 bg-white px-3 py-2 text-sm text-slate-700">
             <option value="">All regions</option>
-            <option value="North India">North India</option>
-            <option value="South India">South India</option>
-            <option value="Nepal Region">Nepal Region</option>
+            <optgroup label="North India">
+              <option value="Delhi NCR">Delhi NCR</option>
+              <option value="Uttar Pradesh">Uttar Pradesh</option>
+              <option value="Punjab">Punjab</option>
+              <option value="Haryana">Haryana</option>
+              <option value="Rajasthan">Rajasthan</option>
+            </optgroup>
+            <optgroup label="South India">
+              <option value="Coastal Karnataka">Coastal Karnataka</option>
+              <option value="North Karnataka">North Karnataka</option>
+              <option value="Tamil Nadu">Tamil Nadu</option>
+              <option value="Kerala">Kerala</option>
+              <option value="Telangana">Telangana</option>
+            </optgroup>
+            <optgroup label="International">
+              <option value="Nepal">Nepal</option>
+              <option value="Dubai">Dubai</option>
+            </optgroup>
           </select>
           <button onClick={handleFilter} className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Apply</button>
         </div>

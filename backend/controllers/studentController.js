@@ -1,12 +1,7 @@
 import Student from "../models/Student.js";
 import User from "../models/User.js";
 import { handleLeadCreated } from "../services/automation/leadCreated.js";
-
-const VALID_REGIONS = [
-  "North India",
-  "South India",
-  "Nepal Region",
-];
+import { isValidRegion } from "../utils/regions.js";
 
 const VALID_STATUS = [
   "Cold",
@@ -17,16 +12,6 @@ const VALID_STATUS = [
 ];
 
 const VALID_INTAKES = [6, 12, 18, 24];
-
-// Defines which statuses a lead can move to from its current status.
-// Withdrawn is only reachable from Converted, per the lifecycle rules.
-const LEAD_STATUS_TRANSITIONS = {
-  Cold: ["Cold", "Warm", "Hot"],
-  Warm: ["Warm", "Cold", "Hot"],
-  Hot: ["Hot", "Warm", "Converted"],
-  Converted: ["Converted", "Withdrawn"],
-  Withdrawn: ["Withdrawn"],
-};
 
 const VALID_STUDY_PREFERENCES = ["Study in India", "Study Abroad"];
 
@@ -42,6 +27,57 @@ const isValidPhone = (phone) =>
 
 const isValidStudyPreference = (value) =>
   VALID_STUDY_PREFERENCES.includes(value);
+
+const isValidIntakeMonth = (value) =>
+  Number.isInteger(value) && value >= 1 && value <= 12;
+
+const isValidIntakeYear = (value) => {
+  const currentYear = new Date().getFullYear();
+  return Number.isInteger(value) && value >= currentYear && value <= currentYear + 10;
+};
+
+/*
+|--------------------------------------------------------------------------
+| Role-based lead scoping
+|--------------------------------------------------------------------------
+| Single source of truth for "can this user act on this student record".
+| Used both to build list filters AND to gate single-record endpoints
+| (get/update/remarks/followup/status/assign/toggle/delete) so a user
+| can't bypass their scope by hitting a record directly via its ID.
+|
+| IMPORTANT: expects `student.region`, `student.city`, `student.assignedPartner`,
+| `student.createdBy` to be the *raw* (unpopulated) values — i.e. call this
+| against a plain `Student.findById(...)` result, not a `.populate()`d one.
+| (getStudentById populates and does its own equivalent checks inline.)
+*/
+const isStudentInScope = (user, student) => {
+  switch (user.role) {
+    case "super_admin":
+    case "co_admin":
+      return true;
+
+    case "regional_head":
+      return student.region === user.region;
+
+    case "partner":
+      return (
+        !!student.assignedPartner &&
+        student.assignedPartner.toString() === user._id.toString()
+      );
+
+    case "city_head":
+      return student.city === user.city;
+
+    case "data_entry":
+      return (
+        !!student.createdBy &&
+        student.createdBy.toString() === user._id.toString()
+      );
+
+    default:
+      return false;
+  }
+};
 
 /*
 |--------------------------------------------------------------------------
@@ -102,16 +138,33 @@ export const createStudent = async (req, res) => {
     }
 
     // Region Validation
-    const trimmedRegion = region?.trim();
+    let trimmedRegion = region?.trim();
 
     if (
       trimmedRegion &&
-      !VALID_REGIONS.includes(trimmedRegion)
+      !isValidRegion(trimmedRegion)
     ) {
       return res.status(400).json({
         success: false,
         message: "Invalid region.",
       });
+    }
+
+    let trimmedCity = city.trim();
+
+    // City Head scoping: a City Head can only create leads for their own
+    // city. Rather than silently overriding a mismatched value, reject it
+    // so the client isn't surprised by data going somewhere it didn't ask for.
+    if (req.user.role === "city_head") {
+      if (trimmedCity !== req.user.city) {
+        return res.status(403).json({
+          success: false,
+          message: "You can only create leads for your assigned city.",
+        });
+      }
+      if (req.user.region) {
+        trimmedRegion = req.user.region;
+      }
     }
 
     // Follow-up Date Validation
@@ -152,9 +205,14 @@ export const createStudent = async (req, res) => {
       studyPreference: studyPreference.trim(),
       preferredCountry: preferredCountry?.trim() || "",
       region: trimmedRegion || null,
-      city: city.trim(),
+      city: trimmedCity,
       remarks: remarks?.trim() || "",
       followUpDate: followUpDate || null,
+      // A City Head creating their own lead is implicitly its assigned
+      // city head, so downstream city-scoped visibility/mutation checks
+      // work immediately without a separate assign-city-head call.
+      assignedCityHead:
+        req.user.role === "city_head" ? req.user._id : null,
       createdBy: req.user._id,
     });
     await handleLeadCreated(student, req.user);
@@ -209,7 +267,8 @@ export const getStudents = async (req, res) => {
       filter.region = req.query.region;
     }
 
-    // Role-based access
+    // Role-based access (applied after query filters so a caller can't
+    // widen their own scope via query params)
     if (req.user.role === "regional_head") {
       filter.region = req.user.region;
     }
@@ -218,9 +277,11 @@ export const getStudents = async (req, res) => {
       filter.assignedPartner = req.user._id;
     }
 
+    // City Heads see every lead in their city, not just ones already
+    // explicitly assigned to them — assignment is a separate concern
+    // from city-level visibility.
     if (req.user.role === "city_head") {
       filter.city = req.user.city;
-      filter.assignedCityHead = req.user._id;
     }
 
     if (req.user.role === "data_entry") {
@@ -291,8 +352,8 @@ export const getStudentById = async (req, res) => {
     // Partner - only assigned leads
     if (
       req.user.role === "partner" &&
-      student.assignedPartner &&
-      student.assignedPartner._id.toString() !== req.user._id.toString()
+      (!student.assignedPartner ||
+        student.assignedPartner._id.toString() !== req.user._id.toString())
     ) {
       return res.status(403).json({
         success: false,
@@ -314,8 +375,8 @@ export const getStudentById = async (req, res) => {
     // Data Entry - only leads created by them
     if (
       req.user.role === "data_entry" &&
-      student.createdBy &&
-      student.createdBy._id.toString() !== req.user._id.toString()
+      (!student.createdBy ||
+        student.createdBy._id.toString() !== req.user._id.toString())
     ) {
       return res.status(403).json({
         success: false,
@@ -337,7 +398,8 @@ export const getStudentById = async (req, res) => {
     });
   }
 };
-  /*
+
+/*
 |--------------------------------------------------------------------------
 | Update Student
 |--------------------------------------------------------------------------
@@ -363,6 +425,16 @@ export const updateStudent = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Student not found.",
+      });
+    }
+
+    // Scope check — route-level `authorize` only confirms the role is
+    // *allowed to update students in general*, not that this particular
+    // record belongs to the caller's territory.
+    if (!isStudentInScope(req.user, student)) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have access to this lead.",
       });
     }
 
@@ -419,21 +491,36 @@ export const updateStudent = async (req, res) => {
       student.phone = phone.trim();
     }
 
-    // Region
-    if (region) {
-      if (!VALID_REGIONS.includes(region)) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid region.",
-        });
-      }
+    // Region — only validate/apply if the caller is actually changing it.
+    // Re-submitting the lead's *current* region (e.g. because the edit form
+    // resends the whole object) should never trip "Invalid region", even if
+    // that stored value happens to predate the current regions.js list.
+    if (region !== undefined) {
+      const trimmedRegion = region.trim();
 
-      student.region = region.trim();
+      if (trimmedRegion !== (student.region || "")) {
+        if (trimmedRegion && !isValidRegion(trimmedRegion)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid region.",
+          });
+        }
+
+        student.region = trimmedRegion || null;
+      }
     }
 
-    // City
+    // City — a City Head can't move a lead out of their own city (that
+    // would just be them silently losing/gaining access to it).
     if (city) {
-      student.city = city.trim();
+      const trimmedCity = city.trim();
+      if (req.user.role === "city_head" && trimmedCity !== req.user.city) {
+        return res.status(403).json({
+          success: false,
+          message: "You cannot move a lead outside your assigned city.",
+        });
+      }
+      student.city = trimmedCity;
     }
 
     // Study Preference
@@ -449,7 +536,7 @@ export const updateStudent = async (req, res) => {
 
     // Preferred Country
     if (preferredCountry !== undefined) {
-      student.preferredCountry = preferredCountry.trim();
+      student.preferredCountry = (preferredCountry || "").trim();
     }
 
     // Remarks
@@ -501,18 +588,21 @@ export const updateLeadStatus = async (req, res) => {
       leadStatus,
       expectedIntake,
       destinationCountry,
+      intakeMonth,
+      intakeYear,
       withdrawalReason,
     } = req.body;
 
-    // Only City Head can update lead status
-  if (
-  !["super_admin", "co_admin", "city_head"].includes(req.user.role)
-) {
-  return res.status(403).json({
-    success: false,
-    message: "You are not authorized to update lead status.",
-  });
-}
+    // Only City Head can update lead status (Super Admin / Co-Admin retain
+    // override access as part of their "complete system access").
+    if (
+      !["super_admin", "co_admin", "city_head"].includes(req.user.role)
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to update lead status.",
+      });
+    }
 
     if (!VALID_STATUS.includes(leadStatus)) {
       return res.status(400).json({
@@ -529,24 +619,20 @@ export const updateLeadStatus = async (req, res) => {
         message: "Student not found.",
       });
     }
-if (
-  req.user.role === "city_head" &&
-  student.assignedCityHead?.toString() !== req.user._id.toString()
-) {
-  return res.status(403).json({
-    success: false,
-    message: "You can only update leads assigned to you.",
-  });
-}
 
-    // Enforce the lead lifecycle: Cold -> Warm -> Hot -> Converted -> Withdrawn
-    const allowedNextStatuses = LEAD_STATUS_TRANSITIONS[student.leadStatus] || [];
-    if (!allowedNextStatuses.includes(leadStatus)) {
-      return res.status(400).json({
+    if (
+      req.user.role === "city_head" &&
+      student.city !== req.user.city
+    ) {
+      return res.status(403).json({
         success: false,
-        message: `Cannot move a lead from '${student.leadStatus}' to '${leadStatus}'.`,
+        message: "You can only update leads in your assigned city.",
       });
     }
+
+    // Any status can move to any other status directly (e.g. Cold ->
+    // Converted, Cold -> Withdrawn) — there's no forced staircase. Only
+    // the mandatory fields for the *target* status are validated below.
 
     // Warm: capture the expected intake period so the system can
     // auto-calculate the next follow-up date (handled in the Student model).
@@ -566,7 +652,9 @@ if (
       student.expectedIntake = null;
     }
 
-    // Converted: the student has joined a group; capture the destination.
+    // Converted: the student has confirmed admission; capture destination
+    // country plus the specific intake month/year (per the Student model's
+    // "Converted stores admission details: Country, Intake Month, Intake Year").
     if (leadStatus === "Converted") {
       if (!isSafeString(destinationCountry)) {
         return res.status(400).json({
@@ -574,11 +662,32 @@ if (
           message: "Destination country is required to mark a lead as Converted.",
         });
       }
+
+      const month = Number(intakeMonth);
+      const year = Number(intakeYear);
+
+      if (!isValidIntakeMonth(month)) {
+        return res.status(400).json({
+          success: false,
+          message: "A valid intake month (1-12) is required to mark a lead as Converted.",
+        });
+      }
+
+      if (!isValidIntakeYear(year)) {
+        return res.status(400).json({
+          success: false,
+          message: "A valid intake year is required to mark a lead as Converted.",
+        });
+      }
+
       student.destinationCountry = destinationCountry.trim();
+      student.intakeMonth = month;
+      student.intakeYear = year;
       student.conversionDate = new Date();
     }
 
-    // Withdrawn: only reachable from Converted; capture the reason.
+    // Withdrawn: capture the reason. Reachable directly from any status,
+    // not just Converted.
     if (leadStatus === "Withdrawn") {
       if (!isSafeString(withdrawalReason)) {
         return res.status(400).json({
@@ -638,6 +747,17 @@ export const assignPartner = async (req, res) => {
       });
     }
 
+    // Regional Head can only assign partners for leads in their own region.
+    if (
+      req.user.role === "regional_head" &&
+      student.region !== req.user.region
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only assign partners for leads in your own region.",
+      });
+    }
+
     // Partner must belong to the same region
     if (partner.region !== student.region) {
       return res.status(400).json({
@@ -693,12 +813,36 @@ export const assignCityHead = async (req, res) => {
         message: "Student not found.",
       });
     }
-if (cityHead.city !== student.city) {
-  return res.status(400).json({
-    success: false,
-    message: "City Head does not belong to this city.",
-  });
-}
+
+    // Regional Head can only reassign leads within their own region.
+    if (
+      req.user.role === "regional_head" &&
+      student.region !== req.user.region
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only assign city heads for leads in your own region.",
+      });
+    }
+
+    // Partner can only reassign leads in cities they themselves manage.
+    if (
+      req.user.role === "partner" &&
+      !(req.user.cities || []).includes(student.city)
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only assign city heads for cities you manage.",
+      });
+    }
+
+    if (cityHead.city !== student.city) {
+      return res.status(400).json({
+        success: false,
+        message: "City Head does not belong to this city.",
+      });
+    }
+
     student.assignedCityHead = cityHead._id;
     student.updatedBy = req.user._id;
 
@@ -742,6 +886,13 @@ export const updateRemarks = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Student not found.",
+      });
+    }
+
+    if (!isStudentInScope(req.user, student)) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have access to this lead.",
       });
     }
 
@@ -798,6 +949,13 @@ export const updateFollowUp = async (req, res) => {
       });
     }
 
+    if (!isStudentInScope(req.user, student)) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have access to this lead.",
+      });
+    }
+
     student.followUpDate = followUpDate;
     student.updatedBy = req.user._id;
 
@@ -846,6 +1004,16 @@ export const toggleStudentStatus = async (req, res) => {
       });
     }
 
+    if (
+      req.user.role === "regional_head" &&
+      student.region !== req.user.region
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only manage leads in your own region.",
+      });
+    }
+
     student.isActive = !student.isActive;
     student.updatedBy = req.user._id;
 
@@ -889,6 +1057,16 @@ export const deleteStudent = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Lead not found.",
+      });
+    }
+
+    if (
+      req.user.role === "regional_head" &&
+      student.region !== req.user.region
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only delete leads in your own region.",
       });
     }
 
@@ -964,7 +1142,7 @@ export const searchStudents = async (req, res) => {
     }
 
     if (req.user.role === "city_head") {
-      query.assignedCityHead = req.user._id;
+      query.city = req.user.city;
     }
 
     if (req.user.role === "data_entry") {
@@ -1018,7 +1196,8 @@ export const filterStudents = async (req, res) => {
       query.preferredCountry = preferredCountry;
     }
 
-    // Role-based filters
+    // Role-based filters (applied after query filters so a caller can't
+    // widen their own scope, e.g. a City Head passing a different ?city=)
     if (req.user.role === "regional_head") {
       query.region = req.user.region;
     }
@@ -1028,7 +1207,7 @@ export const filterStudents = async (req, res) => {
     }
 
     if (req.user.role === "city_head") {
-      query.assignedCityHead = req.user._id;
+      query.city = req.user.city;
     }
 
     if (req.user.role === "data_entry") {

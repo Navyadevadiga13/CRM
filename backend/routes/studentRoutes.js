@@ -262,8 +262,7 @@ router.delete(
   authorize(
     "super_admin",
     "co_admin",
-    "regional_head",
-    "partner"
+    "regional_head"
   ),
   deleteStudent
 );

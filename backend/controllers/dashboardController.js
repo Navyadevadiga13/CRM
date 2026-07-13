@@ -19,7 +19,10 @@ if (user.role === "partner") {
 }
 
 if (user.role === "city_head") {
-  studentFilter.assignedCityHead = user._id;
+  // City-level visibility, matching getStudents/searchStudents/filterStudents
+  // in studentController — a City Head sees every lead in their city, not
+  // just ones already explicitly assigned to them via assignedCityHead.
+  studentFilter.city = user.city;
 }
 
    const [

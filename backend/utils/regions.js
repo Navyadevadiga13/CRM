@@ -12,6 +12,7 @@ export const REGIONS_BY_DIVISION = {
   "South India": [
     "Coastal Karnataka",
     "North Karnataka",
+    "South Karnataka",
     "Tamil Nadu",
     "Kerala",
     "Telangana",
@@ -29,7 +30,17 @@ export const CITIES_BY_REGION = {
   Punjab: ["Ludhiana", "Amritsar", "Jalandhar", "Patiala"],
   Haryana: ["Panipat", "Karnal", "Hisar", "Rohtak"],
   Rajasthan: ["Jaipur", "Jodhpur", "Udaipur", "Kota"],
-
+"South Karnataka": [
+  "Bengaluru North",
+  "Bengaluru South",
+  "Bengaluru HSR Layout",
+  "Mysuru",
+  "Hassan",
+  "Tumakuru",
+  "Shivamogga",
+  "Davanagere",
+  "Chikkamagaluru",
+],
   "Coastal Karnataka": ["Mangaluru", "Udupi", "Karwar"],
   "North Karnataka": ["Hubballi", "Belagavi", "Kalaburagi", "Vijayapura"],
   "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Tiruchirappalli"],
@@ -39,7 +50,6 @@ export const CITIES_BY_REGION = {
   Nepal: ["Kathmandu", "Pokhara", "Lalitpur", "Biratnagar"],
   Dubai: ["Dubai", "Sharjah", "Abu Dhabi"],
 };
-
 // Flattened list of every valid region, regardless of division — used
 // wherever we just need to know "is this a recognized region".
 export const ALL_REGIONS = Object.values(REGIONS_BY_DIVISION).flat();
@@ -60,6 +70,5 @@ export const getDivisionForRegion = (region) => {
 // Given a region, returns the cities that belong to it (empty array if the
 // region is unrecognized or has no cities configured yet).
 export const getCitiesForRegion = (region) => CITIES_BY_REGION[region] || [];
-
 export const isValidCityForRegion = (city, region) =>
   getCitiesForRegion(region).includes(city);

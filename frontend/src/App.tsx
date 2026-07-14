@@ -1,14 +1,16 @@
 import type { ReactElement } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 
 import { useAuth } from "./context/AuthContext";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import DashboardLayout from "./layouts/DashboardLayout";
+import RegionalHeadLayout from "./layouts/RegionalHeadLayout";
 
 import LoginPage from "./pages/auth/LoginPage";
 
 import DashboardPage from "./pages/dashboard/DashboardPage";
+import Regionaldashboard from "./pages/dashboard/RegionalHeadDashboard";
 
 import UsersPage from "./pages/users/UsersPage";
 import CreateUserPage from "./pages/users/CreateUserPage";
@@ -25,8 +27,25 @@ const withLayout = (element: ReactElement) => (
   </ProtectedRoute>
 );
 
+// Where a logged-in user should land, based on role. Add more role -> path
+// mappings here as new role-specific homes are built.
+const homePathForRole = (role: string | undefined) => {
+  if (role === "regional_head") return "/regional-head";
+  return "/dashboard";
+};
+
+// Guards the entire /regional-head/* branch: must be logged in AND be a
+// regional_head. Anyone else (including other authenticated roles) gets
+// bounced to their own home instead of seeing this area.
+const RegionalHeadRoute = ({ children }: { children: ReactElement }) => {
+  const { isAuthenticated, user } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/" replace />;
+  if (user?.role !== "regional_head") return <Navigate to={homePathForRole(user?.role)} replace />;
+  return children;
+};
+
 function App() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   return (
     <Routes>
@@ -37,17 +56,29 @@ function App() {
         path="/"
         element={
           isAuthenticated ? (
-            <Navigate
-              to="/dashboard"
-              replace
-            />
+            <Navigate to={homePathForRole(user?.role)} replace />
           ) : (
             <LoginPage />
           )
         }
       />
 
-      {/* Dashboard */}
+      {/* Regional head home — Dashboard, Lead details, Logout only */}
+
+      <Route
+        path="/regional-head"
+        element={
+          <RegionalHeadRoute>
+            <RegionalHeadLayout />
+          </RegionalHeadRoute>
+        }
+      >
+        <Route index element={<Regionaldashboard />} />
+        <Route path="leads" element={<StudentsPage />} />
+        <Route path="leads/:id" element={<LeadDetailsPage />} />
+      </Route>
+
+      {/* Dashboard (everyone else) */}
 
       <Route
         path="/dashboard"
@@ -93,21 +124,13 @@ function App() {
         element={withLayout(<LeadDetailsPage />)}
       />
 
-      {/* Reports */}
-
-  
-
       {/* Redirect */}
 
       <Route
         path="*"
         element={
           <Navigate
-            to={
-              isAuthenticated
-                ? "/dashboard"
-                : "/"
-            }
+            to={isAuthenticated ? homePathForRole(user?.role) : "/"}
             replace
           />
         }

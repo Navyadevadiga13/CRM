@@ -209,6 +209,15 @@ const CreateStudentPage = () => {
     setLoading(true);
     setError("");
 
+      // Phone number validation
+  if (!/^[6-9]\d{9}$/.test(form.phone)) {
+    setError(
+      "Phone number must be exactly 10 digits and start with 6, 7, 8, or 9."
+    );
+    setLoading(false);
+    return;
+  }
+  
     const payload = {
       ...form,
       preferredCountry:
@@ -254,8 +263,24 @@ const CreateStudentPage = () => {
         </div>
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-700">Phone</label>
-          <input name="phone" value={form.phone} onChange={handleChange} required className="w-full rounded-xl border border-slate-200 px-3 py-2" />
-        </div>
+        <input
+  type="tel"
+  name="phone"
+  value={form.phone}
+
+  onChange={(e) => {
+    const value = e.target.value.replace(/\D/g, "").slice(0, 10);
+
+    setForm((prev) => ({
+      ...prev,
+      phone: value,
+    }));
+  }}
+  maxLength={10}
+  placeholder="9876543210"
+  required
+  className="w-full rounded-xl border border-slate-200 px-3 py-2"
+/></div>
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-700">Study preference</label>
           <select name="studyPreference" value={form.studyPreference} onChange={handleChange} required className="w-full rounded-xl border border-slate-200 px-3 py-2">

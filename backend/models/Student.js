@@ -79,7 +79,7 @@ const studentSchema = new mongoose.Schema(
     // expects to start studying. Drives the auto-calculated followUpDate.
     expectedIntake: {
       type: Number,
-      enum: [6, 12, 18, 24],
+      enum: [3, 6, 12, 18, 24],
       default: null,
     },
 

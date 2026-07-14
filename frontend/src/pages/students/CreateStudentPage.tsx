@@ -1,22 +1,115 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createStudent } from "../../api/studentApi";
+import { useAuth } from "../../context/AuthContext";
 
 const CITIES_BY_REGION: Record<string, string[]> = {
-  "Delhi NCR": ["Delhi", "Noida", "Gurugram", "Faridabad", "Ghaziabad"],
-  "Uttar Pradesh": ["Lucknow", "Kanpur", "Varanasi", "Agra", "Prayagraj"],
-  Punjab: ["Ludhiana", "Amritsar", "Jalandhar", "Patiala"],
-  Haryana: ["Panipat", "Karnal", "Hisar", "Rohtak"],
-  Rajasthan: ["Jaipur", "Jodhpur", "Udaipur", "Kota"],
+  // ==========================
+  // NORTH INDIA
+  // ==========================
+  "Delhi NCR": [
+    "Delhi",
+    "Noida",
+    "Gurugram",
+    "Faridabad",
+    "Ghaziabad",
+  ],
 
-  "Coastal Karnataka": ["Mangaluru", "Udupi", "Karwar"],
-  "North Karnataka": ["Hubballi", "Belagavi", "Kalaburagi", "Vijayapura"],
-  "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Tiruchirappalli"],
-  Kerala: ["Kochi", "Thiruvananthapuram", "Kozhikode", "Kottayam"],
-  Telangana: ["Hyderabad", "Warangal", "Nizamabad"],
+  "Uttar Pradesh": [
+    "Lucknow",
+    "Kanpur",
+    "Varanasi",
+    "Agra",
+    "Prayagraj",
+  ],
 
-  Nepal: ["Kathmandu", "Pokhara", "Lalitpur", "Biratnagar"],
-  Dubai: ["Dubai", "Sharjah", "Abu Dhabi"],
+  Punjab: [
+    "Ludhiana",
+    "Amritsar",
+    "Jalandhar",
+    "Patiala",
+  ],
+
+  Haryana: [
+    "Panipat",
+    "Karnal",
+    "Hisar",
+    "Rohtak",
+  ],
+
+  Rajasthan: [
+    "Jaipur",
+    "Jodhpur",
+    "Udaipur",
+    "Kota",
+  ],
+
+  // ==========================
+  // SOUTH INDIA
+  // ==========================
+  "Coastal Karnataka": [
+    "Mangaluru",
+    "Manipal",
+    "Udupi",
+    "Puttur",
+    "Karwar",
+  ],
+
+  "North Karnataka": [
+    "Hubballi",
+    "Belagavi",
+    "Dharwad",
+    "Kalaburagi",
+    "Vijayapura",
+  ],
+
+  "South Karnataka": [
+    "Bengaluru North",
+    "Bengaluru South",
+    "Bengaluru HSR Layout",
+    "Mysuru",
+    "Hassan",
+    "Tumakuru",
+    "Shivamogga",
+    "Davanagere",
+    "Chikkamagaluru",
+  ],
+
+  Kerala: [
+    "Kochi",
+    "Thiruvananthapuram",
+    "Kozhikode",
+    "Kottayam",
+  ],
+
+  "Tamil Nadu": [
+    "Chennai",
+    "Coimbatore",
+    "Madurai",
+    "Tiruchirappalli",
+  ],
+
+  Telangana: [
+    "Hyderabad",
+    "Warangal",
+    "Nizamabad",
+  ],
+
+  // ==========================
+  // INTERNATIONAL
+  // ==========================
+  Nepal: [
+    "Kathmandu",
+    "Pokhara",
+    "Lalitpur",
+    "Biratnagar",
+  ],
+
+  Dubai: [
+    "Dubai",
+    "Sharjah",
+    "Abu Dhabi",
+  ],
 };
 
 export const COUNTRIES = [
@@ -56,6 +149,15 @@ export const COUNTRIES = [
 
 const CreateStudentPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // The backend's createStudent forces region = req.user.region and
+  // rejects the request outright if city !== req.user.city for a
+  // city_head caller. So a city_head never actually gets to choose these
+  // — we pre-fill and lock them instead of showing pickers that would
+  // just 403 on submit.
+  const isCityHead = user?.role === "city_head";
+
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -71,12 +173,25 @@ const CreateStudentPage = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Pre-fill region/city once the logged-in user is available (useAuth
+  // may resolve after initial mount).
+  useEffect(() => {
+    if (isCityHead && user) {
+      setForm((prev) => ({
+        ...prev,
+        region: user.region || prev.region,
+        city: user.city || prev.city,
+      }));
+    }
+  }, [isCityHead, user]);
+
   const handleChange = (event: any) => {
     const { name, value } = event.target;
 
     if (name === "region") {
       // Reset city whenever the region changes, since the previously
-      // selected city may not belong to the new region.
+      // selected city may not belong to the new region. Not reachable
+      // for city_head since the region field is locked for them.
       setForm((prev) => ({ ...prev, region: value, city: "" }));
       return;
     }
@@ -120,6 +235,15 @@ const CreateStudentPage = () => {
       <form onSubmit={handleSubmit} className="mt-8 grid gap-4 md:grid-cols-2">
         {error ? <div className="md:col-span-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div> : null}
 
+        {isCityHead ? (
+          <div className="md:col-span-2 rounded-xl border border-cyan-200 bg-cyan-50 p-3 text-sm text-cyan-800">
+            New leads you create are automatically added to your assigned city
+            {form.city ? ` (${form.city}` : ""}
+            {form.region ? `, ${form.region})` : form.city ? ")" : "."}
+            .
+          </div>
+        ) : null}
+
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-700">Name</label>
           <input name="name" value={form.name} onChange={handleChange} required className="w-full rounded-xl border border-slate-200 px-3 py-2" />
@@ -160,48 +284,69 @@ const CreateStudentPage = () => {
             />
           ) : null}
         </div>
+
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-700">Region</label>
-          <select name="region" value={form.region} onChange={handleChange} className="w-full rounded-xl border border-slate-200 px-3 py-2">
-            <option value="">Select region</option>
-            <optgroup label="North India">
-              <option value="Delhi NCR">Delhi NCR</option>
-              <option value="Uttar Pradesh">Uttar Pradesh</option>
-              <option value="Punjab">Punjab</option>
-              <option value="Haryana">Haryana</option>
-              <option value="Rajasthan">Rajasthan</option>
-            </optgroup>
-            <optgroup label="South India">
-              <option value="Coastal Karnataka">Coastal Karnataka</option>
-              <option value="North Karnataka">North Karnataka</option>
-              <option value="Tamil Nadu">Tamil Nadu</option>
-              <option value="Kerala">Kerala</option>
-              <option value="Telangana">Telangana</option>
-            </optgroup>
-            <optgroup label="International">
-              <option value="Nepal">Nepal</option>
-              <option value="Dubai">Dubai</option>
-            </optgroup>
-          </select>
+          {isCityHead ? (
+            <input
+              value={form.region || "Not set on your account"}
+              disabled
+              className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-500"
+            />
+          ) : (
+            <select name="region" value={form.region} onChange={handleChange} className="w-full rounded-xl border border-slate-200 px-3 py-2">
+              <option value="">Select region</option>
+              <optgroup label="North India">
+                <option value="Delhi NCR">Delhi NCR</option>
+                <option value="Uttar Pradesh">Uttar Pradesh</option>
+                <option value="Punjab">Punjab</option>
+                <option value="Haryana">Haryana</option>
+                <option value="Rajasthan">Rajasthan</option>
+              </optgroup>
+              <optgroup label="South India">
+                <option value="Coastal Karnataka">Coastal Karnataka</option>
+                <option value="North Karnataka">North Karnataka</option>
+                 <option value="South Karnataka">South Karnataka</option>
+                <option value="Tamil Nadu">Tamil Nadu</option>
+                <option value="Kerala">Kerala</option>
+                <option value="Telangana">Telangana</option>
+              </optgroup>
+              <optgroup label="International">
+                <option value="Nepal">Nepal</option>
+                <option value="Dubai">Dubai</option>
+              </optgroup>
+            </select>
+          )}
         </div>
+
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-700">City</label>
-          <select
-            name="city"
-            value={form.city}
-            onChange={handleChange}
-            required
-            disabled={!form.region}
-            className="w-full rounded-xl border border-slate-200 px-3 py-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-          >
-            <option value="">{form.region ? "Select city" : "Select region first"}</option>
-            {cityOptions.map((city) => (
-              <option key={city} value={city}>
-                {city}
-              </option>
-            ))}
-          </select>
+          {isCityHead ? (
+            <input
+              value={form.city || "Not set on your account"}
+              disabled
+              required
+              className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-500"
+            />
+          ) : (
+            <select
+              name="city"
+              value={form.city}
+              onChange={handleChange}
+              required
+              disabled={!form.region}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+            >
+              <option value="">{form.region ? "Select city" : "Select region first"}</option>
+              {cityOptions.map((city) => (
+                <option key={city} value={city}>
+                  {city}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
+
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-700">Follow-up date</label>
           <input name="followUpDate" type="date" value={form.followUpDate} onChange={handleChange} className="w-full rounded-xl border border-slate-200 px-3 py-2" />
@@ -212,7 +357,7 @@ const CreateStudentPage = () => {
         </div>
         <div className="md:col-span-2 flex justify-end gap-3">
           <button type="button" onClick={() => navigate("/students")} className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Cancel</button>
-          <button type="submit" disabled={loading} className="rounded-full bg-cyan-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-70">{loading ? "Saving..." : "Create lead"}</button>
+          <button type="submit" disabled={loading || (isCityHead && !form.city)} className="rounded-full bg-cyan-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-70">{loading ? "Saving..." : "Create lead"}</button>
         </div>
       </form>
     </div>

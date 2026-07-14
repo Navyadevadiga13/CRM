@@ -50,12 +50,14 @@ const LeadDetailsPage = () => {
   const [student, setStudent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const [statusForm, setStatusForm] = useState({
-    leadStatus: "",
-    expectedIntake: "",
-    destinationCountry: "",
-    withdrawalReason: "",
-  });
+const [statusForm, setStatusForm] = useState({
+  leadStatus: "",
+  expectedIntake: "",
+  destinationCountry: "",
+  intakeMonth: "",
+  intakeYear: "",
+  withdrawalReason: "",
+});
   const [otherDestinationCountry, setOtherDestinationCountry] = useState("");
   const [statusError, setStatusError] = useState("");
   const [statusSaving, setStatusSaving] = useState(false);
@@ -106,18 +108,31 @@ const LeadDetailsPage = () => {
       payload.expectedIntake = Number(statusForm.expectedIntake);
     }
 
-    if (statusForm.leadStatus === "Converted") {
-      const resolvedDestinationCountry =
-        statusForm.destinationCountry === "Other"
-          ? otherDestinationCountry.trim()
-          : statusForm.destinationCountry.trim();
+if (statusForm.leadStatus === "Converted") {
+  const resolvedDestinationCountry =
+    statusForm.destinationCountry === "Other"
+      ? otherDestinationCountry.trim()
+      : statusForm.destinationCountry.trim();
 
-      if (!resolvedDestinationCountry) {
-        setStatusError("Destination country is required to mark a lead as Converted.");
-        return;
-      }
-      payload.destinationCountry = resolvedDestinationCountry;
-    }
+  if (!resolvedDestinationCountry) {
+    setStatusError("Destination country is required.");
+    return;
+  }
+
+  if (!statusForm.intakeMonth) {
+    setStatusError("Please select an intake month.");
+    return;
+  }
+
+  if (!statusForm.intakeYear) {
+    setStatusError("Please enter an intake year.");
+    return;
+  }
+
+  payload.destinationCountry = resolvedDestinationCountry;
+  payload.intakeMonth = Number(statusForm.intakeMonth);
+  payload.intakeYear = Number(statusForm.intakeYear);
+}
 
     if (statusForm.leadStatus === "Withdrawn") {
       if (!statusForm.withdrawalReason.trim()) {
@@ -261,6 +276,52 @@ const LeadDetailsPage = () => {
                         className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
                       />
                     ) : null}
+
+<div className="mt-3">
+  <label className="mb-2 block text-sm font-medium text-slate-700">
+    Intake Month
+  </label>
+
+  <select
+    name="intakeMonth"
+    value={statusForm.intakeMonth}
+    onChange={handleStatusFormChange}
+    className="w-full rounded-xl border border-slate-200 px-3 py-2"
+  >
+    <option value="">Select month</option>
+
+    <option value="1">January</option>
+    <option value="2">February</option>
+    <option value="3">March</option>
+    <option value="4">April</option>
+    <option value="5">May</option>
+    <option value="6">June</option>
+    <option value="7">July</option>
+    <option value="8">August</option>
+    <option value="9">September</option>
+    <option value="10">October</option>
+    <option value="11">November</option>
+    <option value="12">December</option>
+  </select>
+</div>
+<div className="mt-3">
+  <label className="mb-2 block text-sm font-medium text-slate-700">
+    Intake Year
+  </label>
+
+  <input
+    type="number"
+    name="intakeYear"
+    min="2025"
+    max="2100"
+    value={statusForm.intakeYear}
+    onChange={handleStatusFormChange}
+    placeholder="2027"
+    className="w-full rounded-xl border border-slate-200 px-3 py-2"
+  />
+</div>
+
+                    
                   </div>
                 ) : null}
 

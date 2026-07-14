@@ -4,7 +4,29 @@ import { getStudentById, updateLeadStatus } from "../../api/studentApi";
 import { useAuth } from "../../context/AuthContext";
 
 const STATUS_OPTIONS = ["Cold", "Warm", "Hot", "Converted", "Withdrawn"];
-const INTAKE_OPTIONS = [6, 12, 18, 24];
+
+// Must match the model's expectedIntake enum ([3, 6, 9, 12]) — these are
+// months-out-from-now, not years, so 6/12/18/24 was wrong and would always
+// fail backend validation.
+const INTAKE_OPTIONS = [3, 6, 9, 12];
+
+const MONTH_OPTIONS = [
+  { value: 1, label: "January" },
+  { value: 2, label: "February" },
+  { value: 3, label: "March" },
+  { value: 4, label: "April" },
+  { value: 5, label: "May" },
+  { value: 6, label: "June" },
+  { value: 7, label: "July" },
+  { value: 8, label: "August" },
+  { value: 9, label: "September" },
+  { value: 10, label: "October" },
+  { value: 11, label: "November" },
+  { value: 12, label: "December" },
+];
+
+const currentYear = new Date().getFullYear();
+const YEAR_OPTIONS = Array.from({ length: 11 }, (_, i) => currentYear + i);
 
 const COUNTRIES = [
   "Australia",
@@ -44,22 +66,29 @@ const COUNTRIES = [
 // Only these roles can change lead status at all (matches backend route).
 const CAN_UPDATE_STATUS_ROLES = ["super_admin", "co_admin", "city_head"];
 
+const statusBadgeClasses: Record<string, string> = {
+  Cold: "bg-amber-100 text-amber-700",
+  Warm: "bg-violet-100 text-violet-700",
+  Hot: "bg-rose-100 text-rose-700",
+  Converted: "bg-teal-100 text-teal-700",
+  Withdrawn: "bg-slate-200 text-slate-700",
+};
+
 const LeadDetailsPage = () => {
   const { id } = useParams();
   const { user } = useAuth();
   const [student, setStudent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-const [statusForm, setStatusForm] = useState({
-  leadStatus: "",
-  expectedIntake: "",
-  destinationCountry: "",
-  intakeMonth: "",
-  intakeYear: "",
-  withdrawalReason: "",
-});
+  const [statusForm, setStatusForm] = useState({
+    leadStatus: "",
+    expectedIntake: "",
+    destinationCountry: "",
+    withdrawalReason: "",
+  });
   const [otherDestinationCountry, setOtherDestinationCountry] = useState("");
   const [statusError, setStatusError] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
   const [statusSaving, setStatusSaving] = useState(false);
 
   const canUpdateStatus = CAN_UPDATE_STATUS_ROLES.includes(user?.role || "");
@@ -69,7 +98,15 @@ const [statusForm, setStatusForm] = useState({
     try {
       const { data } = await getStudentById(id);
       setStudent(data.student);
-      setStatusForm((prev) => ({ ...prev, leadStatus: data.student.leadStatus || "Cold" }));
+      setStatusForm((prev) => ({
+        ...prev,
+        leadStatus: data.student.leadStatus || "Cold",
+        expectedIntake: data.student.expectedIntake ? String(data.student.expectedIntake) : "",
+        destinationCountry: data.student.destinationCountry || "",
+        intakeMonth: data.student.intakeMonth ? String(data.student.intakeMonth) : "",
+        intakeYear: data.student.intakeYear ? String(data.student.intakeYear) : "",
+        withdrawalReason: data.student.withdrawalReason || "",
+      }));
     } catch {
       setStudent(null);
     } finally {
@@ -96,6 +133,7 @@ const [statusForm, setStatusForm] = useState({
     event.preventDefault();
     if (!id) return;
     setStatusError("");
+    setStatusMessage("");
 
     // Build payload with only the fields relevant to the target status.
     const payload: Record<string, unknown> = { leadStatus: statusForm.leadStatus };
@@ -114,25 +152,12 @@ if (statusForm.leadStatus === "Converted") {
       ? otherDestinationCountry.trim()
       : statusForm.destinationCountry.trim();
 
-  if (!resolvedDestinationCountry) {
-    setStatusError("Destination country is required.");
-    return;
-  }
-
-  if (!statusForm.intakeMonth) {
-    setStatusError("Please select an intake month.");
-    return;
-  }
-
-  if (!statusForm.intakeYear) {
-    setStatusError("Please enter an intake year.");
-    return;
-  }
-
-  payload.destinationCountry = resolvedDestinationCountry;
-  payload.intakeMonth = Number(statusForm.intakeMonth);
-  payload.intakeYear = Number(statusForm.intakeYear);
-}
+      if (!resolvedDestinationCountry) {
+        setStatusError("Destination country is required to mark a lead as Converted.");
+        return;
+      }
+      payload.destinationCountry = resolvedDestinationCountry;
+    }
 
     if (statusForm.leadStatus === "Withdrawn") {
       if (!statusForm.withdrawalReason.trim()) {
@@ -146,6 +171,7 @@ if (statusForm.leadStatus === "Converted") {
     try {
       await updateLeadStatus(id, payload);
       await loadStudent();
+      setStatusMessage(`Lead status successfully updated to ${statusForm.leadStatus}.`);
     } catch (err: any) {
       setStatusError(err.response?.data?.message || "Unable to update lead status.");
     } finally {
@@ -176,12 +202,20 @@ if (statusForm.leadStatus === "Converted") {
           <div className="grid gap-4 sm:grid-cols-2">
             <div><p className="text-sm text-slate-500">Name</p><p className="mt-1 font-semibold text-slate-900">{student.name}</p></div>
             <div><p className="text-sm text-slate-500">Email</p><p className="mt-1 font-semibold text-slate-900">{student.email}</p></div>
-            <div><p className="text-sm text-slate-500">Phone</p><p className="mt-1 font-semibold text-slate-900">{student.phone}</p></div>
+            <div><p className="text-sm text-slate-500">Contact number</p><p className="mt-1 font-semibold text-slate-900">{student.phone || "—"}</p></div>
             <div><p className="text-sm text-slate-500">Study preference</p><p className="mt-1 font-semibold text-slate-900">{student.studyPreference}</p></div>
             <div><p className="text-sm text-slate-500">Preferred country</p><p className="mt-1 font-semibold text-slate-900">{student.preferredCountry || "—"}</p></div>
             <div><p className="text-sm text-slate-500">Region</p><p className="mt-1 font-semibold text-slate-900">{student.region || "—"}</p></div>
             <div><p className="text-sm text-slate-500">City</p><p className="mt-1 font-semibold text-slate-900">{student.city}</p></div>
-            <div><p className="text-sm text-slate-500">Lead status</p><p className="mt-1 font-semibold text-slate-900">{student.leadStatus || "Cold"}</p></div>
+
+            <div>
+              <p className="text-sm text-slate-500">Lead status</p>
+              <p className="mt-1">
+                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadgeClasses[student.leadStatus || "Cold"] || "bg-slate-100 text-slate-700"}`}>
+                  {student.leadStatus || "Cold"}
+                </span>
+              </p>
+            </div>
 
             {student.leadStatus === "Warm" && student.expectedIntake ? (
               <div><p className="text-sm text-slate-500">Expected intake</p><p className="mt-1 font-semibold text-slate-900">{student.expectedIntake} months</p></div>
@@ -191,8 +225,37 @@ if (statusForm.leadStatus === "Converted") {
 
             {student.leadStatus === "Converted" ? (
               <>
-                <div><p className="text-sm text-slate-500">Destination country</p><p className="mt-1 font-semibold text-slate-900">{student.destinationCountry || "—"}</p></div>
-                <div><p className="text-sm text-slate-500">Conversion date</p><p className="mt-1 font-semibold text-slate-900">{student.conversionDate ? new Date(student.conversionDate).toLocaleDateString() : "—"}</p></div>
+                <div>
+                  <p className="text-sm text-slate-500">Destination country</p>
+                  <p className="mt-1 font-semibold text-slate-900">
+                    {student.destinationCountry || "—"}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-sm text-slate-500">Intake month</p>
+                  <p className="mt-1 font-semibold text-slate-900">
+                    {student.intakeMonth
+                      ? MONTH_OPTIONS.find((m) => m.value === student.intakeMonth)?.label || student.intakeMonth
+                      : "—"}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-sm text-slate-500">Intake year</p>
+                  <p className="mt-1 font-semibold text-slate-900">
+                    {student.intakeYear || "—"}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-sm text-slate-500">Conversion date</p>
+                  <p className="mt-1 font-semibold text-slate-900">
+                    {student.conversionDate
+                      ? new Date(student.conversionDate).toLocaleDateString()
+                      : "—"}
+                  </p>
+                </div>
               </>
             ) : null}
 
@@ -203,7 +266,10 @@ if (statusForm.leadStatus === "Converted") {
               </>
             ) : null}
 
+            <div><p className="text-sm text-slate-500">Assigned partner</p><p className="mt-1 font-semibold text-slate-900">{student.assignedPartner?.name || "—"}</p></div>
+            <div><p className="text-sm text-slate-500">Assigned city head</p><p className="mt-1 font-semibold text-slate-900">{student.assignedCityHead?.name || "—"}</p></div>
             <div><p className="text-sm text-slate-500">Created by</p><p className="mt-1 font-semibold text-slate-900">{student.createdBy?.name || "—"}</p></div>
+            <div><p className="text-sm text-slate-500">Created on</p><p className="mt-1 font-semibold text-slate-900">{student.createdAt ? new Date(student.createdAt).toLocaleDateString() : "—"}</p></div>
           </div>
           <div className="mt-6 rounded-2xl bg-slate-50 p-4">
             <p className="text-sm text-slate-500">Remarks</p>
@@ -211,56 +277,63 @@ if (statusForm.leadStatus === "Converted") {
           </div>
         </div>
 
-        <div className="space-y-6">
-          {canUpdateStatus ? (
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-900">Update lead status</h2>
-              <p className="mt-1 text-sm text-slate-500">Move this lead through the pipeline.</p>
+        {canUpdateStatus ? (
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-900">Update lead status</h2>
+            <p className="mt-1 text-sm text-slate-500">Move this lead to a new stage in the pipeline.</p>
 
-              <form onSubmit={handleStatusSubmit} className="mt-4 space-y-3">
-                {statusError ? (
-                  <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{statusError}</div>
-                ) : null}
+            <form onSubmit={handleStatusSubmit} className="mt-4 space-y-4">
+              {statusMessage ? (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+                  {statusMessage}
+                </div>
+              ) : null}
+              {statusError ? (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                  {statusError}
+                </div>
+              ) : null}
 
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Status</label>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-700">Lead status</label>
+                <select
+                  name="leadStatus"
+                  value={statusForm.leadStatus}
+                  onChange={handleStatusFormChange}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-emerald-500"
+                >
+                  {STATUS_OPTIONS.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              {statusForm.leadStatus === "Warm" ? (
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">Expected intake</label>
                   <select
-                    name="leadStatus"
-                    value={statusForm.leadStatus}
+                    name="expectedIntake"
+                    value={statusForm.expectedIntake}
                     onChange={handleStatusFormChange}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-emerald-500"
                   >
-                    {STATUS_OPTIONS.map((s) => (
-                      <option key={s} value={s}>{s}</option>
+                    <option value="">Select intake</option>
+                    {INTAKE_OPTIONS.map((option) => (
+                      <option key={option} value={option}>{option} months</option>
                     ))}
                   </select>
                 </div>
+              ) : null}
 
-                {statusForm.leadStatus === "Warm" ? (
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700">Expected intake</label>
-                    <select
-                      name="expectedIntake"
-                      value={statusForm.expectedIntake}
-                      onChange={handleStatusFormChange}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                    >
-                      <option value="">Select months</option>
-                      {INTAKE_OPTIONS.map((m) => (
-                        <option key={m} value={m}>{m} months</option>
-                      ))}
-                    </select>
-                  </div>
-                ) : null}
-
-                {statusForm.leadStatus === "Converted" ? (
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700">Destination country</label>
+              {statusForm.leadStatus === "Converted" ? (
+                <>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-slate-700">Destination country</label>
                     <select
                       name="destinationCountry"
                       value={statusForm.destinationCountry}
                       onChange={handleStatusFormChange}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-emerald-500"
                     >
                       <option value="">Select country</option>
                       {COUNTRIES.map((country) => (
@@ -269,11 +342,10 @@ if (statusForm.leadStatus === "Converted") {
                     </select>
                     {statusForm.destinationCountry === "Other" ? (
                       <input
-                        name="otherDestinationCountry"
                         value={otherDestinationCountry}
                         onChange={(e) => setOtherDestinationCountry(e.target.value)}
-                        placeholder="Enter country"
-                        className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                        placeholder="Enter destination country"
+                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-emerald-500"
                       />
                     ) : null}
 
@@ -323,40 +395,64 @@ if (statusForm.leadStatus === "Converted") {
 
                     
                   </div>
-                ) : null}
 
-                {statusForm.leadStatus === "Withdrawn" ? (
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700">Withdrawal reason</label>
-                    <textarea
-                      name="withdrawalReason"
-                      rows={3}
-                      value={statusForm.withdrawalReason}
-                      onChange={handleStatusFormChange}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-slate-700">Intake month</label>
+                      <select
+                        name="intakeMonth"
+                        value={statusForm.intakeMonth}
+                        onChange={handleStatusFormChange}
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-emerald-500"
+                      >
+                        <option value="">Month</option>
+                        {MONTH_OPTIONS.map((month) => (
+                          <option key={month.value} value={month.value}>{month.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-slate-700">Intake year</label>
+                      <select
+                        name="intakeYear"
+                        value={statusForm.intakeYear}
+                        onChange={handleStatusFormChange}
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-emerald-500"
+                      >
+                        <option value="">Year</option>
+                        {YEAR_OPTIONS.map((year) => (
+                          <option key={year} value={year}>{year}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                ) : null}
+                </>
+              ) : null}
 
-                <button
-                  type="submit"
-                  disabled={statusSaving}
-                  className="w-full rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-70"
-                >
-                  {statusSaving ? "Updating..." : "Update status"}
-                </button>
-              </form>
-            </div>
-          ) : null}
+              {statusForm.leadStatus === "Withdrawn" ? (
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">Withdrawal reason</label>
+                  <textarea
+                    name="withdrawalReason"
+                    value={statusForm.withdrawalReason}
+                    onChange={handleStatusFormChange}
+                    rows={3}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-emerald-500"
+                  />
+                </div>
+              ) : null}
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">Quick actions</h2>
-            <div className="mt-4 space-y-3">
-              <Link to="/students" className="block rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50">Back to leads</Link>
-              <Link to="/students/create" className="block rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50">Create another lead</Link>
-            </div>
+              <button
+                type="submit"
+                disabled={statusSaving}
+                className="w-full rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-70"
+              >
+                {statusSaving ? "Updating..." : "Update status"}
+              </button>
+            </form>
           </div>
-        </div>
+        ) : null}
       </div>
     </div>
   );

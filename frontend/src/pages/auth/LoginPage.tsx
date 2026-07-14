@@ -75,7 +75,7 @@ const LoginPage = () => {
                 value={form.email}
                 onChange={handleChange}
                 className="w-full rounded-2xl border border-emerald-100 bg-emerald-50/50 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:bg-white"
-                placeholder="you@example.com"
+                placeholder=" "
               />
             </div>
 

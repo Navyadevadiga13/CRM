@@ -46,15 +46,27 @@ const UsersPage = () => {
     }
   };
 
-  // Super Admin can never be deactivated or deleted.
-  // Co-Admin additionally can never delete a Super Admin account.
-  const canDelete = (targetUser: any) => {
-    if (targetUser.role === "super_admin") return false;
+  // Co-Admin has the same edit access as Super Admin, with two exceptions:
+  // Co-Admin can never edit the Super Admin account, and Co-Admin can
+  // never deactivate or delete any account (Super Admin only).
+  const canEdit = (targetUser: any) => {
     if (currentUser?.role === "co_admin" && targetUser.role === "super_admin") return false;
     return true;
   };
 
-  const canToggle = (targetUser: any) => targetUser.role !== "super_admin";
+  // Super Admin can never be deactivated or deleted. Co-Admins can never
+  // deactivate or delete anyone.
+  const canDelete = (targetUser: any) => {
+    if (targetUser.role === "super_admin") return false;
+    if (currentUser?.role === "co_admin") return false;
+    return true;
+  };
+
+  const canToggle = (targetUser: any) => {
+    if (targetUser.role === "super_admin") return false;
+    if (currentUser?.role === "co_admin") return false;
+    return true;
+  };
 
   return (
     <div className="space-y-6">
@@ -111,9 +123,11 @@ const UsersPage = () => {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap items-center gap-3">
-                      <Link to={`/users/edit/${user._id}`} className="text-sm font-medium text-amber-600">
-                        Edit
-                      </Link>
+                      {canEdit(user) ? (
+                        <Link to={`/users/edit/${user._id}`} className="text-sm font-medium text-amber-600">
+                          Edit
+                        </Link>
+                      ) : null}
 
                       {canToggle(user) ? (
                         <button
@@ -129,7 +143,7 @@ const UsersPage = () => {
                       ) : (
                         <span
                           className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-200 opacity-60"
-                          title="Super Admin status cannot be changed"
+                          title={user.role === "super_admin" ? "Super Admin status cannot be changed" : "You do not have permission to change user status"}
                         >
                           <span className="inline-block h-5 w-5 translate-x-5 transform rounded-full bg-white" />
                         </span>

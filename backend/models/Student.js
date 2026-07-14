@@ -79,7 +79,7 @@ const studentSchema = new mongoose.Schema(
     // expects to start studying. Drives the auto-calculated followUpDate.
     expectedIntake: {
       type: Number,
-      enum: [3, 6, 12, 18, 24],
+      enum: [6, 12, 18, 24],
       default: null,
     },
 
@@ -167,19 +167,38 @@ const studentSchema = new mongoose.Schema(
 // Only validates the mandatory fields for whichever status is being set —
 // no requirement that the lead passed through any particular prior status.
 studentSchema.pre("validate", function (next) {
+  // Cold: auto-calc a 7-day follow-up window. Only recomputed when the
+  // lead is newly created or (re)enters Cold, so saving an unrelated
+  // field (e.g. remarks) doesn't keep pushing the follow-up date out.
+  if (this.leadStatus === "Cold") {
+    if (this.isNew || this.isModified("leadStatus")) {
+      const base = new Date();
+      base.setDate(base.getDate() + 7);
+      this.followUpDate = base;
+    }
+  }
+
   // Warm: require an intake period and auto-calc the follow-up date —
   // exactly 7 days *before* the selected intake period, so staff have a
-  // buffer to follow up ahead of the student's target start date.
+  // buffer to follow up ahead of the student's target start date. Only
+  // recomputed when entering Warm or changing the intake, so re-saving
+  // an unrelated field doesn't keep resetting the date.
   if (this.leadStatus === "Warm") {
     if (!this.expectedIntake) {
       return next(
         new Error("expectedIntake is required when leadStatus is 'Warm'")
       );
     }
-    const base = new Date();
-    base.setMonth(base.getMonth() + this.expectedIntake);
-    base.setDate(base.getDate() - 7);
-    this.followUpDate = base;
+    if (
+      this.isNew ||
+      this.isModified("leadStatus") ||
+      this.isModified("expectedIntake")
+    ) {
+      const base = new Date();
+      base.setMonth(base.getMonth() + this.expectedIntake);
+      base.setDate(base.getDate() - 7);
+      this.followUpDate = base;
+    }
   }
 
   // Converted: require destination country + intake month/year, stamp conversion date

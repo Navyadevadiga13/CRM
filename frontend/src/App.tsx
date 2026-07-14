@@ -12,7 +12,7 @@ import LoginPage from "./pages/auth/LoginPage";
 import DashboardPage from "./pages/dashboard/DashboardPage";
 import Regionaldashboard from "./pages/dashboard/RegionalHeadDashboard";
 
-import UsersPage from "./pages/users/UsersPage";
+
 import CreateUserPage from "./pages/users/CreateUserPage";
 import EditUserPage from "./pages/users/EditUserPage";
 
@@ -20,7 +20,7 @@ import StudentsPage from "./pages/students/StudentsPage";
 import CreateStudentPage from "./pages/students/CreateStudentPage";
 import EditStudentPage from "./pages/students/EditStudentPage";
 import LeadDetailsPage from "./pages/students/LeadDetailsPage";
-
+import UsersPage from "./pages/users/UserPage";
 const withLayout = (element: ReactElement) => (
   <ProtectedRoute>
     <DashboardLayout>{element}</DashboardLayout>
@@ -87,10 +87,10 @@ function App() {
 
       {/* Users */}
 
-      <Route
-        path="/users"
-        element={withLayout(<UsersPage />)}
-      />
+<Route
+  path="/users"
+  element={withLayout(<UsersPage />)}
+/>
 
       <Route
         path="/users/create"

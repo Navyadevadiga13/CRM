@@ -12,20 +12,29 @@ import {
 | - Partner creates no one (Partners aren't responsible for hiring/lead
 |   management, only for owning cities).
 */
-const roleHierarchy = {
-  super_admin: [
-    "co_admin",
-    "regional_head",
-    "partner",
-    "data_entry",
-  ],
+// Roles that Super Admin and Co-Admin can both create. They have
+// identical creation permissions across the entire hierarchy — the only
+// real differences between the two are enforced elsewhere:
+//   - Only Super Admin can activate/deactivate or delete a user
+//     (see toggleUserStatus / deleteUser).
+//   - Co-Admin can never view, edit, activate/deactivate, or delete the
+//     Super Admin account (see isUserInScope).
+// Previously `super_admin` was missing "city_head" here, which caused
+// "You are not allowed to create this role." when a Super Admin tried
+// to create a City Head even though Co-Admin (and the front-end role
+// picker) already allowed it.
+const ADMIN_MANAGEABLE_ROLES = [
+  "co_admin",
+  "regional_head",
+  "partner",
+  "city_head",
+  "data_entry",
+];
 
-  co_admin: [
-    "regional_head",
-    "partner",
-    "data_entry",
-    "city_head"
-  ],
+const roleHierarchy = {
+  super_admin: ADMIN_MANAGEABLE_ROLES,
+  co_admin: ADMIN_MANAGEABLE_ROLES,
+
   regional_head: [
     "city_head",
     "partner",
@@ -63,18 +72,12 @@ const isUserInScope = (actor, target) => {
       return true;
 
     case "co_admin":
-      // Co-Admins never manage the Super Admin or other Co-Admins.
-      if (target.role === "super_admin" || target.role === "co_admin") {
-        return false;
-      }
-      // Scope to users whose (auto-derived) division matches this
-      // Co-Admin's division. data_entry has no region/division field
-      // today, so division scoping can't reach them yet — see the note
-      // in getUsers.
-      if (actor.division && target.division) {
-        return target.division === actor.division;
-      }
-      return true;
+      // Co-Admin has identical view/edit/manage access to Super Admin for
+      // every other account — it is intentionally NOT scoped to the
+      // Co-Admin's own division/region. The single carve-out is that a
+      // Co-Admin can never view, edit, activate/deactivate, or delete
+      // the Super Admin account itself.
+      return target.role !== "super_admin";
 
     case "regional_head":
       return (
@@ -336,24 +339,16 @@ export const getUsers = async (req, res) => {
 
     const filter = {};
 
-    // Co-Admin: view-only access, scoped to their own division (see
-    // toggleUserStatus/deleteUser for the enforcement that Co-Admins can't
-    // activate/deactivate or delete). Never sees the Super Admin or other
-    // Co-Admins.
-    // NOTE: only regional_head / partner / city_head carry a `division`
-    // field today (auto-derived from `region`). data_entry has none, so a
-    // division-scoped Co-Admin currently won't see data_entry users in
-    // this filter. If Co-Admins need to manage their division's data
-    // entry staff too, data_entry will need a region/division field (or
-    // this filter needs to resolve it via createdBy) — flagging this as
-    // a follow-up rather than guessing at the intended behavior.
+    // Co-Admin: identical visibility to Super Admin — sees every role
+    // except Super Admin (and itself is excluded from ever seeing that
+    // account, per isUserInScope). No division-based filtering: a
+    // Co-Admin manages the whole hierarchy, not just their own division.
+    // (Co-Admin is still blocked from activating/deactivating or
+    // deleting anyone — enforced in toggleUserStatus/deleteUser.)
     if (loggedInUser.role === "co_admin") {
       filter.role = {
-        $in: ["regional_head", "partner", "city_head", "data_entry"],
+        $in: ["co_admin", "regional_head", "partner", "city_head", "data_entry"],
       };
-      if (loggedInUser.division) {
-        filter.division = loggedInUser.division;
-      }
     }
 
     // Regional Head
@@ -434,6 +429,13 @@ export const getUserById = async (req, res) => {
 
     }
 
+    if (req.user.role === "co_admin" && user.role === "super_admin") {
+      return res.status(403).json({
+        success: false,
+        message: "You cannot view the Super Admin account.",
+      });
+    }
+
     if (!isUserInScope(req.user, user)) {
       return res.status(403).json({
         success: false,
@@ -483,6 +485,13 @@ export const updateUser = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "User not found.",
+      });
+    }
+
+    if (req.user.role === "co_admin" && user.role === "super_admin") {
+      return res.status(403).json({
+        success: false,
+        message: "You cannot edit the Super Admin account.",
       });
     }
 
@@ -599,7 +608,26 @@ export const updateUser = async (req, res) => {
       user.cities = normalizedCities;
     }
 
-    if (typeof isActive === "boolean") {
+    // isActive — mirrors the rules enforced in toggleUserStatus. This field
+    // must NOT be settable through the general update path without the same
+    // checks, otherwise a Co-Admin (or anyone) could bypass toggleUserStatus's
+    // restrictions simply by sending `isActive` in a PUT /users/:id body.
+    if (typeof isActive === "boolean" && isActive !== user.isActive) {
+      if (req.user.role === "co_admin") {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Co-Admins are not permitted to activate or deactivate user accounts.",
+        });
+      }
+
+      if (user.role === "super_admin") {
+        return res.status(403).json({
+          success: false,
+          message: "Super Admin cannot be activated or deactivated.",
+        });
+      }
+
       user.isActive = isActive;
     }
 
@@ -773,3 +801,4 @@ export const deleteUser = async (req, res) => {
   }
 
 };
+

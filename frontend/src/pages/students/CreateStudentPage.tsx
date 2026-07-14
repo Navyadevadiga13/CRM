@@ -1,115 +1,22 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createStudent } from "../../api/studentApi";
-import { useAuth } from "../../context/AuthContext";
 
 const CITIES_BY_REGION: Record<string, string[]> = {
-  // ==========================
-  // NORTH INDIA
-  // ==========================
-  "Delhi NCR": [
-    "Delhi",
-    "Noida",
-    "Gurugram",
-    "Faridabad",
-    "Ghaziabad",
-  ],
+  "Delhi NCR": ["Delhi", "Noida", "Gurugram", "Faridabad", "Ghaziabad"],
+  "Uttar Pradesh": ["Lucknow", "Kanpur", "Varanasi", "Agra", "Prayagraj"],
+  Punjab: ["Ludhiana", "Amritsar", "Jalandhar", "Patiala"],
+  Haryana: ["Panipat", "Karnal", "Hisar", "Rohtak"],
+  Rajasthan: ["Jaipur", "Jodhpur", "Udaipur", "Kota"],
 
-  "Uttar Pradesh": [
-    "Lucknow",
-    "Kanpur",
-    "Varanasi",
-    "Agra",
-    "Prayagraj",
-  ],
+  "Coastal Karnataka": ["Mangaluru", "Udupi", "Karwar"],
+  "North Karnataka": ["Hubballi", "Belagavi", "Kalaburagi", "Vijayapura"],
+  "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Tiruchirappalli"],
+  Kerala: ["Kochi", "Thiruvananthapuram", "Kozhikode", "Kottayam"],
+  Telangana: ["Hyderabad", "Warangal", "Nizamabad"],
 
-  Punjab: [
-    "Ludhiana",
-    "Amritsar",
-    "Jalandhar",
-    "Patiala",
-  ],
-
-  Haryana: [
-    "Panipat",
-    "Karnal",
-    "Hisar",
-    "Rohtak",
-  ],
-
-  Rajasthan: [
-    "Jaipur",
-    "Jodhpur",
-    "Udaipur",
-    "Kota",
-  ],
-
-  // ==========================
-  // SOUTH INDIA
-  // ==========================
-  "Coastal Karnataka": [
-    "Mangaluru",
-    "Manipal",
-    "Udupi",
-    "Puttur",
-    "Karwar",
-  ],
-
-  "North Karnataka": [
-    "Hubballi",
-    "Belagavi",
-    "Dharwad",
-    "Kalaburagi",
-    "Vijayapura",
-  ],
-
-  "South Karnataka": [
-    "Bengaluru North",
-    "Bengaluru South",
-    "Bengaluru HSR Layout",
-    "Mysuru",
-    "Hassan",
-    "Tumakuru",
-    "Shivamogga",
-    "Davanagere",
-    "Chikkamagaluru",
-  ],
-
-  Kerala: [
-    "Kochi",
-    "Thiruvananthapuram",
-    "Kozhikode",
-    "Kottayam",
-  ],
-
-  "Tamil Nadu": [
-    "Chennai",
-    "Coimbatore",
-    "Madurai",
-    "Tiruchirappalli",
-  ],
-
-  Telangana: [
-    "Hyderabad",
-    "Warangal",
-    "Nizamabad",
-  ],
-
-  // ==========================
-  // INTERNATIONAL
-  // ==========================
-  Nepal: [
-    "Kathmandu",
-    "Pokhara",
-    "Lalitpur",
-    "Biratnagar",
-  ],
-
-  Dubai: [
-    "Dubai",
-    "Sharjah",
-    "Abu Dhabi",
-  ],
+  Nepal: ["Kathmandu", "Pokhara", "Lalitpur", "Biratnagar"],
+  Dubai: ["Dubai", "Sharjah", "Abu Dhabi"],
 };
 
 export const COUNTRIES = [
@@ -149,49 +56,26 @@ export const COUNTRIES = [
 
 const CreateStudentPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-
-  // The backend's createStudent forces region = req.user.region and
-  // rejects the request outright if city !== req.user.city for a
-  // city_head caller. So a city_head never actually gets to choose these
-  // — we pre-fill and lock them instead of showing pickers that would
-  // just 403 on submit.
-  const isCityHead = user?.role === "city_head";
-
   const [form, setForm] = useState({
     name: "",
     email: "",
     phone: "",
-    studyPreference: "",
+    studyPreference: "Study in India",
     preferredCountry: "",
     region: "",
     city: "",
     remarks: "",
     followUpDate: "",
   });
-  const [otherCountry, setOtherCountry] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
-  // Pre-fill region/city once the logged-in user is available (useAuth
-  // may resolve after initial mount).
-  useEffect(() => {
-    if (isCityHead && user) {
-      setForm((prev) => ({
-        ...prev,
-        region: user.region || prev.region,
-        city: user.city || prev.city,
-      }));
-    }
-  }, [isCityHead, user]);
 
   const handleChange = (event: any) => {
     const { name, value } = event.target;
 
     if (name === "region") {
       // Reset city whenever the region changes, since the previously
-      // selected city may not belong to the new region. Not reachable
-      // for city_head since the region field is locked for them.
+      // selected city may not belong to the new region.
       setForm((prev) => ({ ...prev, region: value, city: "" }));
       return;
     }
@@ -209,15 +93,6 @@ const CreateStudentPage = () => {
     setLoading(true);
     setError("");
 
-      // Phone number validation
-  if (!/^[6-9]\d{9}$/.test(form.phone)) {
-    setError(
-      "Phone number must be exactly 10 digits and start with 6, 7, 8, or 9."
-    );
-    setLoading(false);
-    return;
-  }
-  
     const payload = {
       ...form,
       preferredCountry:
@@ -234,7 +109,7 @@ const CreateStudentPage = () => {
     }
   };
 
-  const cityOptions = CITIES_BY_REGION[form.region] || [];
+  const cityOptions = useMemo(() => (form.region ? CITIES_BY_REGION[form.region] || [] : []), [form.region]);
 
   return (
     <div className="mx-auto max-w-4xl rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
@@ -243,15 +118,6 @@ const CreateStudentPage = () => {
 
       <form onSubmit={handleSubmit} className="mt-8 grid gap-4 md:grid-cols-2">
         {error ? <div className="md:col-span-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div> : null}
-
-        {isCityHead ? (
-          <div className="md:col-span-2 rounded-xl border border-cyan-200 bg-cyan-50 p-3 text-sm text-cyan-800">
-            New leads you create are automatically added to your assigned city
-            {form.city ? ` (${form.city}` : ""}
-            {form.region ? `, ${form.region})` : form.city ? ")" : "."}
-            .
-          </div>
-        ) : null}
 
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-700">Name</label>
@@ -263,24 +129,8 @@ const CreateStudentPage = () => {
         </div>
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-700">Phone</label>
-        <input
-  type="tel"
-  name="phone"
-  value={form.phone}
-
-  onChange={(e) => {
-    const value = e.target.value.replace(/\D/g, "").slice(0, 10);
-
-    setForm((prev) => ({
-      ...prev,
-      phone: value,
-    }));
-  }}
-  maxLength={10}
-  placeholder="9876543210"
-  required
-  className="w-full rounded-xl border border-slate-200 px-3 py-2"
-/></div>
+          <input name="phone" value={form.phone} onChange={handleChange} required className="w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </div>
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-700">Study preference</label>
           <select name="studyPreference" value={form.studyPreference} onChange={handleChange} required className="w-full rounded-xl border border-slate-200 px-3 py-2">
@@ -289,100 +139,74 @@ const CreateStudentPage = () => {
             <option value="Study Abroad">Study Abroad</option>
           </select>
         </div>
+
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-slate-700">Study preference</label>
+          <select name="studyPreference" value={form.studyPreference} onChange={handleChange} className="w-full rounded-2xl border border-emerald-100 bg-emerald-50/40 px-3 py-3 text-slate-700 outline-none transition focus:border-emerald-500 focus:bg-white">
+            {STUDY_PREFERENCES.map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-slate-700">Preferred country</label>
+          <input name="preferredCountry" value={form.preferredCountry} onChange={handleChange} placeholder="Optional" className="w-full rounded-2xl border border-emerald-100 bg-emerald-50/40 px-3 py-3 text-slate-700 outline-none transition focus:border-emerald-500 focus:bg-white" />
+        </div>
         <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">Preferred country</label>
-          <select name="preferredCountry" value={form.preferredCountry} onChange={handleChange} className="w-full rounded-xl border border-slate-200 px-3 py-2">
-            <option value="">Select country</option>
-            {COUNTRIES.map((country) => (
-              <option key={country} value={country}>
-                {country}
+          <label className="mb-2 block text-sm font-medium text-slate-700">Region</label>
+          <select name="region" value={form.region} onChange={handleChange} className="w-full rounded-xl border border-slate-200 px-3 py-2">
+            <option value="">Select region</option>
+            <optgroup label="North India">
+              <option value="Delhi NCR">Delhi NCR</option>
+              <option value="Uttar Pradesh">Uttar Pradesh</option>
+              <option value="Punjab">Punjab</option>
+              <option value="Haryana">Haryana</option>
+              <option value="Rajasthan">Rajasthan</option>
+            </optgroup>
+            <optgroup label="South India">
+              <option value="Coastal Karnataka">Coastal Karnataka</option>
+              <option value="North Karnataka">North Karnataka</option>
+              <option value="Tamil Nadu">Tamil Nadu</option>
+              <option value="Kerala">Kerala</option>
+              <option value="Telangana">Telangana</option>
+            </optgroup>
+            <optgroup label="International">
+              <option value="Nepal">Nepal</option>
+              <option value="Dubai">Dubai</option>
+            </optgroup>
+          </select>
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-700">City</label>
+          <select
+            name="city"
+            value={form.city}
+            onChange={handleChange}
+            required
+            disabled={!form.region}
+            className="w-full rounded-xl border border-slate-200 px-3 py-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+          >
+            <option value="">{form.region ? "Select city" : "Select region first"}</option>
+            {cityOptions.map((city) => (
+              <option key={city} value={city}>
+                {city}
               </option>
             ))}
           </select>
-          {form.preferredCountry === "Other" ? (
-            <input
-              name="otherCountry"
-              value={otherCountry}
-              onChange={(e) => setOtherCountry(e.target.value)}
-              placeholder="Enter country"
-              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2"
-            />
-          ) : null}
         </div>
-
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">Region</label>
-          {isCityHead ? (
-            <input
-              value={form.region || "Not set on your account"}
-              disabled
-              className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-500"
-            />
-          ) : (
-            <select name="region" value={form.region} onChange={handleChange} className="w-full rounded-xl border border-slate-200 px-3 py-2">
-              <option value="">Select region</option>
-              <optgroup label="North India">
-                <option value="Delhi NCR">Delhi NCR</option>
-                <option value="Uttar Pradesh">Uttar Pradesh</option>
-                <option value="Punjab">Punjab</option>
-                <option value="Haryana">Haryana</option>
-                <option value="Rajasthan">Rajasthan</option>
-              </optgroup>
-              <optgroup label="South India">
-                <option value="Coastal Karnataka">Coastal Karnataka</option>
-                <option value="North Karnataka">North Karnataka</option>
-                 <option value="South Karnataka">South Karnataka</option>
-                <option value="Tamil Nadu">Tamil Nadu</option>
-                <option value="Kerala">Kerala</option>
-                <option value="Telangana">Telangana</option>
-              </optgroup>
-              <optgroup label="International">
-                <option value="Nepal">Nepal</option>
-                <option value="Dubai">Dubai</option>
-              </optgroup>
-            </select>
-          )}
-        </div>
-
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">City</label>
-          {isCityHead ? (
-            <input
-              value={form.city || "Not set on your account"}
-              disabled
-              required
-              className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-500"
-            />
-          ) : (
-            <select
-              name="city"
-              value={form.city}
-              onChange={handleChange}
-              required
-              disabled={!form.region}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-            >
-              <option value="">{form.region ? "Select city" : "Select region first"}</option>
-              {cityOptions.map((city) => (
-                <option key={city} value={city}>
-                  {city}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-700">Follow-up date</label>
           <input name="followUpDate" type="date" value={form.followUpDate} onChange={handleChange} className="w-full rounded-xl border border-slate-200 px-3 py-2" />
         </div>
-        <div className="md:col-span-2">
-          <label className="mb-2 block text-sm font-medium text-slate-700">Remarks</label>
-          <textarea name="remarks" rows={4} value={form.remarks} onChange={handleChange} className="w-full rounded-xl border border-slate-200 px-3 py-2" />
+
+        <div className="space-y-2 md:col-span-2">
+          <label className="block text-sm font-medium text-slate-700">Remarks</label>
+          <textarea name="remarks" value={form.remarks} onChange={handleChange} rows={3} placeholder="Optional notes about this lead" className="w-full rounded-2xl border border-emerald-100 bg-emerald-50/40 px-3 py-3 text-slate-700 outline-none transition focus:border-emerald-500 focus:bg-white" />
         </div>
         <div className="md:col-span-2 flex justify-end gap-3">
           <button type="button" onClick={() => navigate("/students")} className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Cancel</button>
-          <button type="submit" disabled={loading || (isCityHead && !form.city)} className="rounded-full bg-cyan-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-70">{loading ? "Saving..." : "Create lead"}</button>
+          <button type="submit" disabled={loading} className="rounded-full bg-cyan-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-70">{loading ? "Saving..." : "Create lead"}</button>
         </div>
       </form>
     </div>

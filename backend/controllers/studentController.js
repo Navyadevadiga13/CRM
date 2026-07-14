@@ -10,7 +10,7 @@ const VALID_STATUS = [
   "Withdrawn",
 ];
 
-const VALID_INTAKES = [6, 12, 18, 24];
+const VALID_INTAKES = [3, 6, 9, 12];
 
 const VALID_STUDY_PREFERENCES = ["Study in India", "Study Abroad"];
 
@@ -629,7 +629,7 @@ export const updateLeadStatus = async (req, res) => {
       if (!VALID_INTAKES.includes(intake)) {
         return res.status(400).json({
           success: false,
-          message: "A valid expected intake (6, 12, 18, or 24 months) is required.",
+          message: "A valid expected intake (3, 6, 9, or 12 months) is required.",
         });
       }
       student.expectedIntake = intake;

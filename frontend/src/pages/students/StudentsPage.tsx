@@ -58,22 +58,11 @@ const StudentsPage = () => {
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState("");
   const [region, setRegion] = useState("");
-  const [city, setCity] = useState("");
 
   const loadStudents = async () => {
     setLoading(true);
     try {
-      const { data } = await getStudents({
-        status: status || undefined,
-        // Regional heads filter by city within their own region; everyone
-        // else filters by region as before. The backend already scopes
-        // regional_head results to their region regardless, so this is
-        // just the extra city-level narrowing on top.
-        region: isRegionalHead ? undefined : region || undefined,
-        city: isRegionalHead ? city || undefined : undefined,
-        page: 1,
-        limit: 20,
-      });
+      const { data } = await getStudents({ status: status || undefined, region: region || undefined, page: 1, limit: 20 });
       setStudents(data.students || []);
     } catch {
       setStudents([]);
@@ -125,44 +114,27 @@ const StudentsPage = () => {
   <option value="Converted">Converted</option>
   <option value="Withdrawn">Withdrawn</option>
 </select>
-
-          {isRegionalHead ? (
-            <select
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              className="rounded-2xl border border-emerald-100 bg-white px-3 py-2 text-sm text-slate-700"
-            >
-              <option value="">All cities</option>
-              {regionalHeadCities.map((cityName) => (
-                <option key={cityName} value={cityName}>
-                  {cityName}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <select value={region} onChange={(e) => setRegion(e.target.value)} className="rounded-2xl border border-emerald-100 bg-white px-3 py-2 text-sm text-slate-700">
-              <option value="">All regions</option>
-              <optgroup label="North India">
-                <option value="Delhi NCR">Delhi NCR</option>
-                <option value="Uttar Pradesh">Uttar Pradesh</option>
-                <option value="Punjab">Punjab</option>
-                <option value="Haryana">Haryana</option>
-                <option value="Rajasthan">Rajasthan</option>
-              </optgroup>
-              <optgroup label="South India">
-                <option value="Coastal Karnataka">Coastal Karnataka</option>
-                <option value="North Karnataka">North Karnataka</option>
-                <option value="Tamil Nadu">Tamil Nadu</option>
-                <option value="Kerala">Kerala</option>
-                <option value="Telangana">Telangana</option>
-              </optgroup>
-              <optgroup label="International">
-                <option value="Nepal">Nepal</option>
-                <option value="Dubai">Dubai</option>
-              </optgroup>
-            </select>
-          )}
-
+          <select value={region} onChange={(e) => setRegion(e.target.value)} className="rounded-2xl border border-emerald-100 bg-white px-3 py-2 text-sm text-slate-700">
+            <option value="">All regions</option>
+            <optgroup label="North India">
+              <option value="Delhi NCR">Delhi NCR</option>
+              <option value="Uttar Pradesh">Uttar Pradesh</option>
+              <option value="Punjab">Punjab</option>
+              <option value="Haryana">Haryana</option>
+              <option value="Rajasthan">Rajasthan</option>
+            </optgroup>
+            <optgroup label="South India">
+              <option value="Coastal Karnataka">Coastal Karnataka</option>
+              <option value="North Karnataka">North Karnataka</option>
+              <option value="Tamil Nadu">Tamil Nadu</option>
+              <option value="Kerala">Kerala</option>
+              <option value="Telangana">Telangana</option>
+            </optgroup>
+            <optgroup label="International">
+              <option value="Nepal">Nepal</option>
+              <option value="Dubai">Dubai</option>
+            </optgroup>
+          </select>
           <button onClick={handleFilter} className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Apply</button>
         </div>
       </div>

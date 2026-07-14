@@ -3,6 +3,7 @@ import User from "../models/User.js";
 import { handleLeadCreated } from "../services/automation/leadCreated.js";
 import { isValidRegion } from "../utils/regions.js";
 import { logLeadActivity } from "../services/automation/leadActivity.js";
+import { createNotification } from "../services/automation/notificationService.js";
 
 const VALID_STATUS = [
   "Cold",
@@ -711,7 +712,14 @@ export const updateLeadStatus = async (req, res) => {
         "Lead Status Changed",
         `${previousStatus} → ${leadStatus}`,
         req.user.name
-  );
+      );
+      await createNotification({
+      recipient: req.user._id,
+      relatedStudent: student._id,
+      type: "status",
+      title: "Lead Status Updated",
+      message: `${previousStatus} → ${leadStatus}`,
+});
 }
 
     res.status(200).json({

@@ -12,7 +12,7 @@ export const handleLeadCreated = async (student, user) => {
   await logLeadActivity(
      student,
      "Lead Created",
-     "Lead entered into CRM",
+     "Lead added successfully",
      user?.name || "System"
 );
 await createNotification({
@@ -20,6 +20,6 @@ await createNotification({
   relatedStudent: student._id,
   type: "lead",
   title: "Lead Created",
-  message: `new lead was added to the CRM.`,
+  message: `Lead successfully added!`,
 });
 };

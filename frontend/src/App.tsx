@@ -8,7 +8,7 @@ import CityHeadRoute from "./components/CityHeadRoute";
 
 import DashboardLayout from "./layouts/DashboardLayout";
 import RegionalHeadLayout from "./layouts/RegionalHeadLayout";
-import CityHeadLayout from "./layouts/CityheadLayout";
+import CityHeadLayout from "./layouts/CityHeadLayout";
 
 import LoginPage from "./pages/auth/LoginPage";
 
@@ -16,7 +16,7 @@ import DashboardPage from "./pages/dashboard/DashboardPage";
 import Regionaldashboard from "./pages/dashboard/RegionalHeadDashboard";
 import CityHeadDashboard from "./pages/dashboard/CityHeadDashboard";
 
-
+import UsersPage from "./pages/users/UserPage";
 import CreateUserPage from "./pages/users/CreateUserPage";
 import EditUserPage from "./pages/users/EditUserPage";
 
@@ -25,8 +25,12 @@ import CreateStudentPage from "./pages/students/CreateStudentPage";
 import EditStudentPage from "./pages/students/EditStudentPage";
 import LeadDetailsPage from "./pages/students/LeadDetailsPage";
 
-const withLayout = (element: ReactElement) => (
-  <ProtectedRoute>
+// `roles`, if given, restricts the route to those roles (in addition to
+// requiring authentication). Without it, any authenticated user can view
+// the route — layout/route nesting is still responsible for anything more
+// specific than that.
+const withLayout = (element: ReactElement, roles?: string[]) => (
+  <ProtectedRoute allowedRoles={roles}>
     <DashboardLayout>{element}</DashboardLayout>
   </ProtectedRoute>
 );
@@ -127,7 +131,7 @@ function App() {
 
       <Route
         path="/users"
-        element={withLayout(<UsersPage />)}
+        element={withLayout(<UsersPage />, ["super_admin", "co_admin"])}
       />
 
       <Route

@@ -5,9 +5,19 @@ import { useAuth } from "../context/AuthContext";
 const Sidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
   const { user } = useAuth();
 
+  const isRegionalHead = user?.role === "regional_head";
+
   const links = [
-    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { to: "/students", label: "Lead pipeline", icon: UserRoundPlus },
+    {
+      to: isRegionalHead ? "/regional-head/dashboard" : "/dashboard",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      to: isRegionalHead ? "/regional-head/leads" : "/students",
+      label: "Lead pipeline",
+      icon: UserRoundPlus,
+    },
   ];
 
   if (user?.role && !["city_head", "data_entry"].includes(user.role)) {
@@ -49,12 +59,6 @@ const Sidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
         ))}
       </nav>
 
-      <div className="border-t border-emerald-900/70 p-4">
-        <div className="rounded-2xl border border-emerald-800/70 bg-emerald-900/60 p-4 text-sm text-emerald-100/80">
-          <p className="font-semibold text-emerald-100">Role-based workflow</p>
-          <p className="mt-1 text-xs leading-5">Regional heads assign partners, partners route city heads, and city heads move leads through follow-up and status updates.</p>
-        </div>
-      </div>
     </div>
   );
 };

@@ -40,8 +40,11 @@ const CITIES_BY_REGION: Record<string, string[]> = {
 };
 
 const StudentsPage = () => {
-  const { user } = useAuth();
-  const isRegionalHead = user?.role === "regional_head";
+const { user } = useAuth();
+
+const isRegionalHead = user?.role === "regional_head";
+const isCityHead = user?.role === "city_head";
+const isSuperAdmin = user?.role === "super_admin";
   // Cities available to filter by, scoped to the regional head's own
   // region. Falls back to an empty list if their region isn't recognized.
   const regionalHeadCities = isRegionalHead
@@ -49,9 +52,14 @@ const StudentsPage = () => {
     : [];
 
   // Where a lead's View/Edit links should point, depending on who's
-  // looking. Regional heads only have /regional-head/leads/:id (view-only
-  // for now); everyone else uses the admin /students routes.
-  const basePath = isRegionalHead ? "/regional-head/leads" : "/students";
+  // looking. Regional heads use /regional-head/leads/:id, city heads use
+  // /city-head/leads/:id, and everyone else uses the admin /students
+  // routes.
+  const basePath = isRegionalHead
+    ? "/regional-head/leads"
+    : isCityHead
+      ? "/city-head/leads"
+      : "/students";
 
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,27 +122,44 @@ const StudentsPage = () => {
   <option value="Converted">Converted</option>
   <option value="Withdrawn">Withdrawn</option>
 </select>
-          <select value={region} onChange={(e) => setRegion(e.target.value)} className="rounded-2xl border border-emerald-100 bg-white px-3 py-2 text-sm text-slate-700">
-            <option value="">All regions</option>
-            <optgroup label="North India">
-              <option value="Delhi NCR">Delhi NCR</option>
-              <option value="Uttar Pradesh">Uttar Pradesh</option>
-              <option value="Punjab">Punjab</option>
-              <option value="Haryana">Haryana</option>
-              <option value="Rajasthan">Rajasthan</option>
-            </optgroup>
-            <optgroup label="South India">
-              <option value="Coastal Karnataka">Coastal Karnataka</option>
-              <option value="North Karnataka">North Karnataka</option>
-              <option value="Tamil Nadu">Tamil Nadu</option>
-              <option value="Kerala">Kerala</option>
-              <option value="Telangana">Telangana</option>
-            </optgroup>
-            <optgroup label="International">
-              <option value="Nepal">Nepal</option>
-              <option value="Dubai">Dubai</option>
-            </optgroup>
-          </select>
+
+          {isRegionalHead ? (
+            <select
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              className="rounded-2xl border border-emerald-100 bg-white px-3 py-2 text-sm text-slate-700"
+            >
+              <option value="">All cities</option>
+              {regionalHeadCities.map((cityName) => (
+                <option key={cityName} value={cityName}>
+                  {cityName}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <select value={region} onChange={(e) => setRegion(e.target.value)} className="rounded-2xl border border-emerald-100 bg-white px-3 py-2 text-sm text-slate-700">
+              <option value="">All regions</option>
+              <optgroup label="North India">
+                <option value="Delhi NCR">Delhi NCR</option>
+                <option value="Uttar Pradesh">Uttar Pradesh</option>
+                <option value="Punjab">Punjab</option>
+                <option value="Haryana">Haryana</option>
+                <option value="Rajasthan">Rajasthan</option>
+              </optgroup>
+              <optgroup label="South India">
+                <option value="Coastal Karnataka">Coastal Karnataka</option>
+                <option value="North Karnataka">North Karnataka</option>
+                <option value="Tamil Nadu">Tamil Nadu</option>
+                <option value="Kerala">Kerala</option>
+                <option value="Telangana">Telangana</option>
+              </optgroup>
+              <optgroup label="International">
+                <option value="Nepal">Nepal</option>
+                <option value="Dubai">Dubai</option>
+              </optgroup>
+            </select>
+          )}
+
           <button onClick={handleFilter} className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Apply</button>
         </div>
       </div>
@@ -173,12 +198,8 @@ const StudentsPage = () => {
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
                     <Link to={`${basePath}/${student._id}`} className="text-sm font-medium text-emerald-600">View</Link>
-                    {!isRegionalHead && (
-                      <Link to={`/students/edit/${student._id}`} className="text-sm font-medium text-amber-600">Edit</Link>
-                    )}
-                    {!isRegionalHead && (
-                      <button onClick={() => handleDelete(student._id)} className="text-sm font-medium text-rose-600">Delete</button>
-                    )}
+                    <Link to={`${basePath}/edit/${student._id}`} className="text-sm font-medium text-amber-600">Edit</Link>
+                    <button onClick={() => handleDelete(student._id)} className="text-sm font-medium text-rose-600">Delete</button>
                   </div>
                 </td>
               </tr>

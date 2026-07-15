@@ -3,15 +3,12 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { BadgeCheck, LayoutDashboard, LogOut, Menu, UserRoundPlus, X } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
-// Deliberately NOT the generic DashboardLayout — a regional head only ever
-// needs these three things, so this is its own small shell rather than the
-// full sidebar (Users, Team access, Add role, etc.) that other roles see.
 const NAV_ITEMS = [
-  { to: "/regional-head", label: "Dashboard", end: true, icon: LayoutDashboard },
-  { to: "/regional-head/leads", label: "Lead details", end: false, icon: UserRoundPlus },
+  { to: "/city-head", label: "Dashboard", end: true, icon: LayoutDashboard },
+  { to: "/city-head/leads", label: "Lead details", end: false, icon: UserRoundPlus },
 ];
 
-const RegionalHeadLayout = () => {
+const CityHeadLayout = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -30,7 +27,7 @@ const RegionalHeadLayout = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 md:flex">
-      {/* Mobile top bar with hamburger */}
+      {/* Mobile Top Bar */}
       <div className="flex items-center justify-between border-b border-teal-100 bg-white px-4 py-3 shadow-sm md:hidden">
         <button
           type="button"
@@ -40,11 +37,15 @@ const RegionalHeadLayout = () => {
         >
           <Menu size={22} />
         </button>
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-teal-600">EduCRM</p>
-        <div className="w-9" /> {/* spacer to balance the hamburger button */}
+
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-teal-600">
+          EduCRM
+        </p>
+
+        <div className="w-9" />
       </div>
 
-      {/* Overlay behind sidebar on mobile */}
+      {/* Mobile Overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-30 bg-black/40 md:hidden"
@@ -65,8 +66,11 @@ const RegionalHeadLayout = () => {
                 <BadgeCheck size={14} />
                 EduCRM
               </div>
-              <p className="mt-2 text-lg font-semibold">Overseas Education CRM</p>
+              <p className="mt-2 text-lg font-semibold">
+                Overseas Education CRM
+              </p>
             </div>
+
             <button
               type="button"
               onClick={() => setSidebarOpen(false)}
@@ -82,7 +86,7 @@ const RegionalHeadLayout = () => {
           </p>
 
           <span className="mb-8 inline-block rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-teal-50">
-            Regional head
+            City Head
           </span>
 
           <nav className="flex flex-col gap-1">
@@ -111,17 +115,24 @@ const RegionalHeadLayout = () => {
         </button>
       </aside>
 
-      {/* Main content */}
+      {/* Main Content */}
       <div className="flex-1">
         <header className="hidden items-center justify-between border-b border-teal-100 bg-white px-6 py-4 shadow-sm md:flex">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-teal-600">Regional head</p>
-            <p className="text-sm font-medium text-slate-700">{user?.name || user?.email}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-teal-600">
+              City Head
+            </p>
+
+            <p className="text-sm font-medium text-slate-700">
+              {user?.name || user?.email}
+            </p>
           </div>
+
           <div className="flex items-center gap-3">
             <span className="rounded-full bg-teal-50 px-4 py-1.5 text-sm font-medium text-teal-700">
-              regional head
+              City Head
             </span>
+
             <button
               type="button"
               onClick={handleLogout}
@@ -141,4 +152,4 @@ const RegionalHeadLayout = () => {
   );
 };
 
-export default RegionalHeadLayout;
+export default CityHeadLayout;

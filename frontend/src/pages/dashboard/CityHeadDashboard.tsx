@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getStudents } from "../../api/studentApi";
+import { useAuth } from "../../context/AuthContext";
 
 interface Student {
   _id: string;
@@ -65,11 +66,12 @@ const isToday = (value?: string) => {
 const workflow = [
   "Inquiry captured by data entry",
   "Regional head assigns partner",
-  "Partner routes city head",
-  "City head updates remarks and follow-up",
+  "Partner routes to you as city head",
+  "You update remarks and follow-up",
 ];
 
-const RegionalHeadDashboard = () => {
+const CityHeadDashboard = () => {
+  const { user } = useAuth();
   const [counts, setCounts] = useState<Counts>(EMPTY_COUNTS);
   const [latestLeads, setLatestLeads] = useState<Student[]>([]);
   const [todayFollowups, setTodayFollowups] = useState<Student[]>([]);
@@ -79,6 +81,8 @@ const RegionalHeadDashboard = () => {
   useEffect(() => {
     const load = async () => {
       try {
+        // The backend already scopes a city_head caller's results to
+        // their own city, so no extra city filter is needed here.
         const { data } = await getStudents({ limit: 1000 });
         const students: Student[] = data.students || [];
 
@@ -122,7 +126,7 @@ const RegionalHeadDashboard = () => {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-emerald-100 bg-white p-6 text-sm text-slate-500 shadow-sm">
+      <div className="rounded-2xl border border-teal-100 bg-white p-6 text-sm text-slate-500 shadow-sm">
         Loading dashboard...
       </div>
     );
@@ -149,13 +153,13 @@ const RegionalHeadDashboard = () => {
               Track every student journey from inquiry to admission.
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-emerald-50/90">
-              This CRM keeps leads visible across the hierarchy, supports follow-up planning, and makes
-              each stage of the student journey easy to manage.
+              A focused view of leads in {user?.city || "your city"}, so nothing slips through
+              during follow-up.
             </p>
           </div>
           <div className="flex-none rounded-xl bg-white/15 px-5 py-3 text-center">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-100">Your role</p>
-            <p className="mt-1 text-sm font-semibold capitalize">Regional head</p>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-100">Your city</p>
+            <p className="mt-1 text-sm font-semibold">{user?.city || "Not set"}</p>
           </div>
         </div>
       </div>
@@ -179,10 +183,10 @@ const RegionalHeadDashboard = () => {
           <div className="flex items-center justify-between border-b border-emerald-100 pb-4">
             <div>
               <h2 className="text-lg font-semibold text-slate-900">Latest leads</h2>
-              <p className="mt-0.5 text-sm text-slate-500">Quick view of the newest student inquiries.</p>
+              <p className="mt-0.5 text-sm text-slate-500">Quick view of the newest student inquiries in your city.</p>
             </div>
             <Link
-              to="/regional-head/leads"
+              to="/city-head/leads"
               className="text-sm font-medium text-emerald-600 hover:text-emerald-700"
             >
               View all
@@ -198,7 +202,7 @@ const RegionalHeadDashboard = () => {
               <div key={lead._id} className="flex items-center justify-between py-3.5">
                 <div>
                   <Link
-                    to={`/regional-head/leads/${lead._id}`}
+                    to={`/city-head/leads/${lead._id}`}
                     className="font-medium text-slate-800 hover:text-emerald-700"
                   >
                     {lead.name}
@@ -217,7 +221,7 @@ const RegionalHeadDashboard = () => {
         <div className="flex flex-col rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Workflow focus</h2>
           <p className="mt-1 text-sm text-slate-500">
-            Monitor the regional funnel and assign partners where needed.
+            Review assigned leads, update remarks, and move them through the pipeline.
           </p>
           <div className="mt-4 flex flex-1 flex-col gap-2.5">
             {workflow.map((step, i) => (
@@ -264,4 +268,4 @@ const RegionalHeadDashboard = () => {
   );
 };
 
-export default RegionalHeadDashboard;
+export default CityHeadDashboard;

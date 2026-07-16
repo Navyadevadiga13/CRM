@@ -19,7 +19,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => void;
 }
 
@@ -45,11 +45,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<User> => {
     const { data } = await loginRequest({ email, password });
     localStorage.setItem("crm_token", data.token);
     localStorage.setItem("crm_user", JSON.stringify(data.user));
     setUser(data.user);
+    // Return the freshly-logged-in user directly, since setUser() won't
+    // have taken effect yet in this same tick (React state updates are
+    // asynchronous) — callers like LoginPage need the role immediately
+    // to decide where to redirect.
+    return data.user;
   };
 
   const logout = () => {

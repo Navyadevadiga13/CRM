@@ -13,7 +13,7 @@ const VALID_STATUS = [
   "Withdrawn",
 ];
 
-const VALID_INTAKES = [6, 12, 18, 24];
+const VALID_INTAKES = [3, 6, 9, 12];
 
 const VALID_STUDY_PREFERENCES = ["Study in India", "Study Abroad"];
 
@@ -243,47 +243,40 @@ export const createStudent = async (req, res) => {
 
 export const getStudents = async (req, res) => {
   try {
-    const page = Math.max(
-      parseInt(req.query.page) || 1,
-      1
-    );
-
-    const limit = Math.min(
-      Math.max(
-        parseInt(req.query.limit) || 20,
-        1
-      ),
-      100
-    );
-
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 20, 1), 100);
     const skip = (page - 1) * limit;
 
     const filter = {};
 
-    // Filters
+    // Filters (query-string driven)
     if (req.query.status) {
       filter.leadStatus = req.query.status;
     }
 
     if (req.query.region) {
-      filter.region = req.query.region;
+      // Exact, case-insensitive, whitespace-tolerant match
+      filter.region = { $regex: `^${req.query.region.trim()}$`, $options: "i" };
     }
 
-    // Role-based access (applied after query filters so a caller can't
-    // widen their own scope via query params)
+    if (req.query.city) {
+      // Exact, case-insensitive, whitespace-tolerant match
+      filter.city = { $regex: `^${req.query.city.trim()}$`, $options: "i" };
+    }
+
+    // Role-based access — applied AFTER query filters so a caller can't
+    // widen their own scope via query params. Region is force-overridden
+    // for regional heads; city (if the user also picked one) stays intact.
     if (req.user.role === "regional_head") {
-      filter.region = req.user.region;
+      filter.region = { $regex: `^${req.user.region.trim()}$`, $options: "i" };
     }
 
     if (req.user.role === "partner") {
       filter.assignedPartner = req.user._id;
     }
 
-    // City Heads see every lead in their city, not just ones already
-    // explicitly assigned to them — assignment is a separate concern
-    // from city-level visibility.
     if (req.user.role === "city_head") {
-      filter.city = req.user.city;
+      filter.city = { $regex: `^${req.user.city.trim()}$`, $options: "i" };
     }
 
     if (req.user.role === "data_entry") {
@@ -309,17 +302,14 @@ export const getStudents = async (req, res) => {
       page,
       totalPages: Math.ceil(total / limit),
     });
-
   } catch (error) {
     console.error("getStudents error:", error);
-
     res.status(500).json({
       success: false,
       message: "Something went wrong.",
     });
   }
 };
-
 /*
 |--------------------------------------------------------------------------
 | Get Student By ID
@@ -643,7 +633,7 @@ export const updateLeadStatus = async (req, res) => {
       if (!VALID_INTAKES.includes(intake)) {
         return res.status(400).json({
           success: false,
-          message: "A valid expected intake (6, 12, 18, or 24 months) is required.",
+          message: "A valid expected intake (3, 6, 9, or 12 months) is required.",
         });
       }
       student.expectedIntake = intake;

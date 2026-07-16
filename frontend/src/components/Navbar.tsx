@@ -1,7 +1,7 @@
 import { Bell, LogOut, Menu } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { useNotifications } from "../hooks/useNotifications";
-  
+import { useNotificationContext } from "../context/NotificationContext";
+
   const Navbar = ({
     onMenuToggle,
     onNotificationClick,
@@ -12,8 +12,7 @@ import { useNotifications } from "../hooks/useNotifications";
 
   const { user, logout } = useAuth();
   const roleLabel = user?.role?.replace(/_/g, " ") || "team member";
-  const { unreadCount } = useNotifications();
-  return (
+  const { unreadCount } = useNotificationContext();  return (
     <header className="sticky top-0 z-20 border-b border-emerald-100 bg-white/90 px-4 py-4 shadow-sm backdrop-blur sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">

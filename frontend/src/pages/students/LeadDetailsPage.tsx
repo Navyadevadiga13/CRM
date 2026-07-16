@@ -110,31 +110,31 @@ const [statusForm, setStatusForm] = useState({
       payload.expectedIntake = Number(statusForm.expectedIntake);
     }
 
-    if (statusForm.leadStatus === "Converted") {
-      const resolvedDestinationCountry =
-        statusForm.destinationCountry === "Other"
-          ? otherDestinationCountry.trim()
-          : statusForm.destinationCountry.trim();
+if (statusForm.leadStatus === "Converted") {
+  const resolvedDestinationCountry =
+    statusForm.destinationCountry === "Other"
+      ? otherDestinationCountry.trim()
+      : statusForm.destinationCountry.trim();
 
-      if (!resolvedDestinationCountry) {
-        setStatusError("Destination country is required.");
-        return;
-      }
+  if (!resolvedDestinationCountry) {
+    setStatusError("Destination country is required.");
+    return;
+  }
 
-      if (!statusForm.intakeMonth) {
-        setStatusError("Please select an intake month.");
-        return;
-      }
+  if (!statusForm.intakeMonth) {
+    setStatusError("Please select an intake month.");
+    return;
+  }
 
-      if (!statusForm.intakeYear) {
-        setStatusError("Please enter an intake year.");
-        return;
-      }
+  if (!statusForm.intakeYear) {
+    setStatusError("Please enter an intake year.");
+    return;
+  }
 
-      payload.destinationCountry = resolvedDestinationCountry;
-      payload.intakeMonth = Number(statusForm.intakeMonth);
-      payload.intakeYear = Number(statusForm.intakeYear);
-    }
+  payload.destinationCountry = resolvedDestinationCountry;
+  payload.intakeMonth = Number(statusForm.intakeMonth);
+  payload.intakeYear = Number(statusForm.intakeYear);
+}
 
     if (statusForm.leadStatus === "Withdrawn") {
       if (!statusForm.withdrawalReason.trim()) {

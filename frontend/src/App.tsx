@@ -1,16 +1,22 @@
 import type { ReactElement } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 
 import { useAuth } from "./context/AuthContext";
 
 import ProtectedRoute from "./components/ProtectedRoute";
+import CityHeadRoute from "./components/CityHeadRoute";
+
 import DashboardLayout from "./layouts/DashboardLayout";
+import RegionalHeadLayout from "./layouts/RegionalHeadLayout";
+import CityHeadLayout from "./layouts/CityHeadLayout";
 
 import LoginPage from "./pages/auth/LoginPage";
 
 import DashboardPage from "./pages/dashboard/DashboardPage";
+import Regionaldashboard from "./pages/dashboard/RegionalHeadDashboard";
+import CityHeadDashboard from "./pages/dashboard/CityHeadDashboard";
 
-import UsersPage from "./pages/users/UsersPage";
+import UsersPage from "./pages/users/UserPage";
 import CreateUserPage from "./pages/users/CreateUserPage";
 import EditUserPage from "./pages/users/EditUserPage";
 
@@ -19,14 +25,50 @@ import CreateStudentPage from "./pages/students/CreateStudentPage";
 import EditStudentPage from "./pages/students/EditStudentPage";
 import LeadDetailsPage from "./pages/students/LeadDetailsPage";
 
-const withLayout = (element: ReactElement) => (
-  <ProtectedRoute>
+// `roles`, if given, restricts the route to those roles (in addition to
+// requiring authentication). Without it, any authenticated user can view
+// the route — layout/route nesting is still responsible for anything more
+// specific than that.
+const withLayout = (element: ReactElement, roles?: string[]) => (
+  <ProtectedRoute allowedRoles={roles}>
     <DashboardLayout>{element}</DashboardLayout>
   </ProtectedRoute>
 );
 
+// Exported so route guards (e.g. CityHeadRoute) can reuse the same
+// role -> home-path mapping instead of duplicating it.
+export const homePathForRole = (role: string | undefined) => {
+  switch (role) {
+    case "super_admin":
+      return "/dashboard";
+
+    case "regional_head":
+      return "/regional-head";
+
+    case "city_head":
+      return "/city-head";
+
+    default:
+      return "/";
+  }
+};
+
+const RegionalHeadRoute = ({ children }: { children: ReactElement }) => {
+  const { isAuthenticated, user } = useAuth();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (user?.role !== "regional_head") {
+    return <Navigate to={homePathForRole(user?.role)} replace />;
+  }
+
+  return children;
+};
+
 function App() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   return (
     <Routes>
@@ -37,65 +79,92 @@ function App() {
         path="/"
         element={
           isAuthenticated ? (
-            <Navigate
-              to="/dashboard"
-              replace
-            />
+            <Navigate to={homePathForRole(user?.role)} replace />
           ) : (
             <LoginPage />
           )
         }
       />
 
-      {/* Dashboard */}
+      {/* Regional Head */}
+
+      <Route
+        path="/regional-head"
+        element={
+          <RegionalHeadRoute>
+            <RegionalHeadLayout />
+          </RegionalHeadRoute>
+        }
+      >
+        <Route index element={<Regionaldashboard />} />
+        <Route path="leads" element={<StudentsPage />} />
+        <Route path="leads/create" element={<CreateStudentPage />} />
+        <Route path="leads/:id" element={<LeadDetailsPage />} />
+        <Route path="leads/edit/:id" element={<EditStudentPage />} />
+      </Route>
+
+      {/* City Head */}
+
+      <Route
+        path="/city-head"
+        element={
+          <CityHeadRoute>
+            <CityHeadLayout />
+          </CityHeadRoute>
+        }
+      >
+        <Route index element={<CityHeadDashboard />} />
+        <Route path="leads" element={<StudentsPage />} />
+        <Route path="leads/create" element={<CreateStudentPage />} />
+        <Route path="leads/:id" element={<LeadDetailsPage />} />
+        <Route path="leads/edit/:id" element={<EditStudentPage />} />
+      </Route>
+
+      {/* Super Admin Dashboard */}
 
       <Route
         path="/dashboard"
         element={withLayout(<DashboardPage />)}
       />
 
-      {/* Users */}
+      {/* Employees — admin only */}
 
       <Route
         path="/users"
-        element={withLayout(<UsersPage />)}
+        element={withLayout(<UsersPage />, ["super_admin", "co_admin"])}
       />
 
       <Route
         path="/users/create"
-        element={withLayout(<CreateUserPage />)}
+        element={withLayout(<CreateUserPage />, ["super_admin", "co_admin"])}
       />
 
       <Route
         path="/users/edit/:id"
-        element={withLayout(<EditUserPage />)}
+        element={withLayout(<EditUserPage />, ["super_admin", "co_admin"])}
       />
 
-      {/* Leads */}
+      {/* Leads — admin only (regional_head / city_head use their own /leads routes above) */}
 
       <Route
         path="/students"
-        element={withLayout(<StudentsPage />)}
+        element={withLayout(<StudentsPage />, ["super_admin", "co_admin"])}
       />
 
       <Route
         path="/students/create"
-        element={withLayout(<CreateStudentPage />)}
+        element={withLayout(<CreateStudentPage />, ["super_admin", "co_admin"])}
       />
 
       <Route
         path="/students/edit/:id"
-        element={withLayout(<EditStudentPage />)}
+        element={withLayout(<EditStudentPage />, ["super_admin", "co_admin"])}
       />
 
       <Route
         path="/students/:id"
-        element={withLayout(<LeadDetailsPage />)}
+        element={withLayout(<LeadDetailsPage />, ["super_admin", "co_admin"])}
       />
-
-      {/* Reports */}
-
-  
 
       {/* Redirect */}
 
@@ -103,11 +172,7 @@ function App() {
         path="*"
         element={
           <Navigate
-            to={
-              isAuthenticated
-                ? "/dashboard"
-                : "/"
-            }
+            to={isAuthenticated ? homePathForRole(user?.role) : "/"}
             replace
           />
         }

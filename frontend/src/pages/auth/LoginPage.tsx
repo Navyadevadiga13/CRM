@@ -23,7 +23,11 @@ const LoginPage = () => {
 
     try {
       await login(form.email, form.password);
-      navigate("/dashboard");
+      // Don't decide the destination here — App.tsx's root route already
+      // redirects an authenticated user to their correct home via
+      // homePathForRole(user?.role). Keeping that logic in one place
+      // avoids this exact kind of mismatch/stale-redirect bug.
+      navigate("/", { replace: true });
     } catch (err: any) {
       setError(err.response?.data?.message || "Login failed. Please try again.");
     } finally {
@@ -71,7 +75,7 @@ const LoginPage = () => {
                 value={form.email}
                 onChange={handleChange}
                 className="w-full rounded-2xl border border-emerald-100 bg-emerald-50/50 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:bg-white"
-                placeholder="you@example.com"
+                placeholder=" "
               />
             </div>
 

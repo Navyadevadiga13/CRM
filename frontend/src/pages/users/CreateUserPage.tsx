@@ -13,6 +13,9 @@ const roleGuide = {
   data_entry: "Data entry captures new student inquiries and keeps the lead record accurate.",
 };
 
+// Kept in sync with the backend's utils/regions.js — every region and city
+// here must exist there too, or a selection that looks valid in the UI
+// will be rejected by the API as an "Invalid region" / "invalid city".
 const CITIES_BY_REGION: Record<string, string[]> = {
   // ==========================
   // NORTH INDIA
@@ -26,33 +29,8 @@ const CITIES_BY_REGION: Record<string, string[]> = {
   // ==========================
   // SOUTH INDIA
   // ==========================
-  "Coastal Karnataka": [
-    "Mangaluru",
-    "Udupi",
-    "Karwar",
-    "Manipal",
-    "Puttur",
-  ],
-
-  "North Karnataka": [
-    "Hubballi",
-    "Belagavi",
-    "Kalaburagi",
-    "Dharwad",
-    "Vijayapura",
-  ],
-
-  "South Karnataka": [
-    "Bengaluru North",
-    "Bengaluru South",
-    "Bengaluru HSR Layout",
-    "Mysuru",
-    "Hassan",
-    "Tumakuru",
-    "Shivamogga",
-    "Davanagere",
-    "Chikkamagaluru",
-  ],
+  "Coastal Karnataka": ["Mangaluru", "Udupi", "Karwar"],
+  "North Karnataka": ["Hubballi", "Belagavi", "Kalaburagi", "Vijayapura"],
 
   Kerala: [
     "Kochi",
@@ -95,7 +73,7 @@ const CITIES_BY_REGION: Record<string, string[]> = {
 // a whole zone rather than a single granular region.
 const ZONES: Record<string, string[]> = {
   "North India": ["Delhi NCR", "Uttar Pradesh", "Punjab", "Haryana", "Rajasthan"],
-  "South India": ["Coastal Karnataka", "North Karnataka", "South Karnataka", "Tamil Nadu", "Kerala", "Telangana"],
+  "South India": ["Coastal Karnataka", "North Karnataka", "Tamil Nadu", "Kerala", "Telangana"],
   International: ["Nepal", "Dubai"],
 };
 
@@ -109,6 +87,7 @@ const CreateUserPage = () => {
     password: "",
     role: "partner",
     region: "",
+    division: "",
     city: "",
     cities: [] as string[],
   });
@@ -120,12 +99,20 @@ const CreateUserPage = () => {
     const { name, value } = event.target;
     setForm((prev) => {
       const next = { ...prev, [name]: value };
-      // Changing the role or the region invalidates any previously chosen
-      // city/cities, since city options depend on region and city fields
-      // only apply to certain roles.
-      if (name === "region" || name === "role") {
+      // Changing the role, region, or division invalidates any previously
+      // chosen city/cities, since city options depend on region and city
+      // fields only apply to certain roles.
+      if (name === "region" || name === "division" || name === "role") {
         next.city = "";
         next.cities = [];
+      }
+      // Changing the role also invalidates any previously chosen
+      // region/division, since a Co-Admin picks a division while every
+      // other region-based role picks a region — they are never both
+      // valid for the same role at once.
+      if (name === "role") {
+        next.region = "";
+        next.division = "";
       }
       return next;
     });
@@ -164,12 +151,19 @@ const CreateUserPage = () => {
   const showCities = form.role === "partner";
   const cityOptions = useMemo(() => (form.region ? CITIES_BY_REGION[form.region] || [] : []), [form.region]);
 
+  // Roles the current user is allowed to create. Mirrors the backend's
+  // roleHierarchy exactly:
+  //   - Super Admin and Co-Admin both create: co_admin, regional_head,
+  //     partner, city_head, data_entry. Neither can create "super_admin"
+  //     — the system only ever has one, enforced on the backend — so it
+  //     must never appear as a selectable option, even for Super Admin.
+  //   - Regional Head only creates partners.
+  //   - Partner only creates city heads.
   const allowedRoles = useMemo(() => {
     switch (user?.role) {
       case "super_admin":
-        return ["super_admin", "co_admin", "regional_head", "partner", "city_head", "data_entry"];
       case "co_admin":
-        return ["regional_head", "partner", "city_head", "data_entry"];
+        return ["co_admin", "regional_head", "partner", "city_head", "data_entry"];
       case "regional_head":
         return ["partner"];
       case "partner":
@@ -222,7 +216,7 @@ const CreateUserPage = () => {
         {showRegion ? (
           <div className="space-y-2">
             <label className="block text-sm font-medium text-slate-700">{isCoAdmin ? "Zone" : "Region"}</label>
-            <select name="region" value={form.region} onChange={handleChange} className="w-full rounded-2xl border border-emerald-100 bg-emerald-50/40 px-3 py-3 text-slate-700 outline-none transition focus:border-emerald-500 focus:bg-white">
+            <select name={isCoAdmin ? "division" : "region"} value={isCoAdmin ? form.division : form.region} onChange={handleChange} className="w-full rounded-2xl border border-emerald-100 bg-emerald-50/40 px-3 py-3 text-slate-700 outline-none transition focus:border-emerald-500 focus:bg-white">
               {isCoAdmin ? (
                 <>
                   <option value="">Select zone</option>

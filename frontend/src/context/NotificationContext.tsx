@@ -39,7 +39,7 @@ export const NotificationProvider = ({
       console.time("refreshNotifications");
 
       const response = await getNotifications();
-
+        
       console.timeEnd("refreshNotifications");
       
       setNotifications(response.data.data);
@@ -80,9 +80,25 @@ export const NotificationProvider = ({
   };
 
   const markAllAsRead = async () => {
+  // Update the UI immediately
+  setNotifications((prev) =>
+    prev.map((notification) => ({
+      ...notification,
+      isRead: true,
+    }))
+  );
+
+  setUnreadCount(0);
+
+  try {
     await markAllNotificationsAsRead();
+  } catch (error) {
+    console.error(error);
+
+    // If the backend fails, reload the real data
     refreshNotifications();
-  };
+  }
+};
 
   return (
     <NotificationContext.Provider

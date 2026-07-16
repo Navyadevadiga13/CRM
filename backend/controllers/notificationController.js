@@ -47,7 +47,7 @@ export const markNotificationAsRead = async (req, res) => {
         message: "Unauthorized.",
       });
     }
-
+    console.log("Marking as read:", req.params.id);
     notification.isRead = true;
 
     await notification.save();

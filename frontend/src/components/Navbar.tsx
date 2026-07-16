@@ -1,10 +1,18 @@
-import { LogOut, Menu } from "lucide-react";
+import { Bell, LogOut, Menu } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useNotifications } from "../hooks/useNotifications";
+  
+  const Navbar = ({
+    onMenuToggle,
+    onNotificationClick,
+  }: {
+    onMenuToggle: () => void;
+    onNotificationClick: () => void;
+  }) => {
 
-const Navbar = ({ onMenuToggle }: { onMenuToggle: () => void }) => {
   const { user, logout } = useAuth();
   const roleLabel = user?.role?.replace(/_/g, " ") || "team member";
-
+  const { unreadCount } = useNotifications();
   return (
     <header className="sticky top-0 z-20 border-b border-emerald-100 bg-white/90 px-4 py-4 shadow-sm backdrop-blur sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -27,6 +35,20 @@ const Navbar = ({ onMenuToggle }: { onMenuToggle: () => void }) => {
           <div className="hidden rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700 sm:block">
             {roleLabel}
           </div>
+          {/* Notification Bell */}
+          <button
+            type="button"
+            onClick={onNotificationClick}
+            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-emerald-200 bg-white text-slate-600 transition hover:bg-emerald-50"
+  >
+          <Bell size={18} />
+
+          {unreadCount > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white">
+              {unreadCount}
+            </span>
+          )}
+          </button>
           <button
             type="button"
             onClick={logout}

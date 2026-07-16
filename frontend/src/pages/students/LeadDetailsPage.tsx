@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getStudentById, updateLeadStatus } from "../../api/studentApi";
 import { useAuth } from "../../context/AuthContext";
+import { useNotificationContext } from "../../context/NotificationContext";
 
 const STATUS_OPTIONS = ["Cold", "Warm", "Hot", "Converted", "Withdrawn"];
 const INTAKE_OPTIONS = [6, 12, 18, 24];
@@ -49,6 +50,7 @@ const LeadDetailsPage = () => {
   const { user } = useAuth();
   const [student, setStudent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const { refreshNotifications } = useNotificationContext();
 
 const [statusForm, setStatusForm] = useState({
   leadStatus: "",
@@ -108,31 +110,31 @@ const [statusForm, setStatusForm] = useState({
       payload.expectedIntake = Number(statusForm.expectedIntake);
     }
 
-if (statusForm.leadStatus === "Converted") {
-  const resolvedDestinationCountry =
-    statusForm.destinationCountry === "Other"
-      ? otherDestinationCountry.trim()
-      : statusForm.destinationCountry.trim();
+    if (statusForm.leadStatus === "Converted") {
+      const resolvedDestinationCountry =
+        statusForm.destinationCountry === "Other"
+          ? otherDestinationCountry.trim()
+          : statusForm.destinationCountry.trim();
 
-  if (!resolvedDestinationCountry) {
-    setStatusError("Destination country is required.");
-    return;
-  }
+      if (!resolvedDestinationCountry) {
+        setStatusError("Destination country is required.");
+        return;
+      }
 
-  if (!statusForm.intakeMonth) {
-    setStatusError("Please select an intake month.");
-    return;
-  }
+      if (!statusForm.intakeMonth) {
+        setStatusError("Please select an intake month.");
+        return;
+      }
 
-  if (!statusForm.intakeYear) {
-    setStatusError("Please enter an intake year.");
-    return;
-  }
+      if (!statusForm.intakeYear) {
+        setStatusError("Please enter an intake year.");
+        return;
+      }
 
-  payload.destinationCountry = resolvedDestinationCountry;
-  payload.intakeMonth = Number(statusForm.intakeMonth);
-  payload.intakeYear = Number(statusForm.intakeYear);
-}
+      payload.destinationCountry = resolvedDestinationCountry;
+      payload.intakeMonth = Number(statusForm.intakeMonth);
+      payload.intakeYear = Number(statusForm.intakeYear);
+    }
 
     if (statusForm.leadStatus === "Withdrawn") {
       if (!statusForm.withdrawalReason.trim()) {
@@ -145,7 +147,10 @@ if (statusForm.leadStatus === "Converted") {
     setStatusSaving(true);
     try {
       await updateLeadStatus(id, payload);
+
       await loadStudent();
+
+      await refreshNotifications();
     } catch (err: any) {
       setStatusError(err.response?.data?.message || "Unable to update lead status.");
     } finally {

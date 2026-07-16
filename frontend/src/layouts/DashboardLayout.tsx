@@ -2,10 +2,11 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
+import NotificationDrawer from "../components/NotificationDrawer";
 
 const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const closeSidebar = () => setIsSidebarOpen(false);
 
   return (
@@ -22,7 +23,16 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
       </aside>
 
       <div className="flex min-h-screen flex-col lg:pl-72">
-        <Navbar onMenuToggle={() => setIsSidebarOpen((value) => !value)} />
+        <Navbar
+          onMenuToggle={() => setIsSidebarOpen((value) => !value)}
+          onNotificationClick={() =>
+            setIsNotificationOpen((value) => !value)
+          }
+        />
+        <NotificationDrawer
+          isOpen={isNotificationOpen}
+          onClose={() => setIsNotificationOpen(false)}
+        />
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>

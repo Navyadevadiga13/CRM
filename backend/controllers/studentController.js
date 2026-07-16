@@ -717,9 +717,8 @@ export const updateLeadStatus = async (req, res) => {
       recipient: req.user._id,
       relatedStudent: student._id,
       type: "status",
-      title: "Lead Status Updated",
-      message: `${previousStatus} → ${leadStatus}`,
-});
+      title: "Status Updated",
+      message: `${student.name} moved from ${previousStatus} to ${leadStatus}.`,});
 }
 
     res.status(200).json({

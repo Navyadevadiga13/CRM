@@ -15,11 +15,13 @@ export const handleLeadCreated = async (student, user) => {
      "Lead added successfully",
      user?.name || "System"
 );
+console.log("DEBUG TITLE:", "New Lead");
+console.log("DEBUG MESSAGE:", `${student.name} was added to the CRM.`);
 await createNotification({
   recipient: user._id,
   relatedStudent: student._id,
   type: "lead",
-  title: "Lead Created",
-  message: `Lead successfully added!`,
+  title: "New Lead",
+  message: `${student.name} was added to the CRM.`,
 });
 };

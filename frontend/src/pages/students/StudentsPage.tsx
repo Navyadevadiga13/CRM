@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { deleteStudent, getStudents } from "../../api/studentApi";
 
@@ -41,6 +41,7 @@ const CITIES_BY_REGION: Record<string, string[]> = {
 
 const StudentsPage = () => {
   const { user } = useAuth();
+  const location = useLocation();
 
   const isRegionalHead = user?.role === "regional_head";
   const isCityHead = user?.role === "city_head";
@@ -67,13 +68,13 @@ const StudentsPage = () => {
   const [status, setStatus] = useState("");
   const [region, setRegion] = useState("");
   const [city, setCity] = useState("");
+  const queryParams = new URLSearchParams(location.search);
+  const statusFromUrl = queryParams.get("status");
 
-  const loadStudents = async () => {
-    setLoading(true);
+const loadStudents = async (selectedStatus = status) => {    setLoading(true);
     try {
       const { data } = await getStudents({
-        status: status || undefined,
-        // Regional heads filter by city within their (already-scoped)
+        status: selectedStatus || undefined,        // Regional heads filter by city within their (already-scoped)
         // region; everyone else filters by region directly.
         region: !isRegionalHead ? region || undefined : undefined,
         city: isRegionalHead ? city || undefined : undefined,
@@ -88,10 +89,15 @@ const StudentsPage = () => {
     }
   };
 
-  useEffect(() => {
-    void loadStudents();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+ useEffect(() => {
+  const queryParams = new URLSearchParams(location.search);
+  const urlStatus = queryParams.get("status") || "";
+
+  setStatus(urlStatus);
+
+  void loadStudents(urlStatus);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [location.search]);
 
   const handleFilter = () => {
     void loadStudents();

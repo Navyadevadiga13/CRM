@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { getDashboard } from "../../api/dashboardApi";
 import { useAuth } from "../../context/AuthContext";
 
 const DashboardPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [dashboard, setDashboard] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -44,13 +45,43 @@ const DashboardPage = () => {
             : "Keep the entire consultancy operation aligned and visible.";
 
   const stats = [
-    { label: "Total leads", value: dashboard?.totalLeads ?? 0, accent: "bg-purple-500" },
-    { label: "Cold", value: dashboard?.coldLeads ?? 0, accent: "bg-red-500" },
-    { label: "Warm", value: dashboard?.warmLeads ?? 0, accent: "bg-yellow-500" },
-    { label: "Hot", value: dashboard?.hotLeads ?? 0, accent: "bg-green-500" },
-    { label: "Converted", value: dashboard?.convertedLeads ?? 0, accent: "bg-blue-500" },
-    { label: "Withdrawn", value: dashboard?.withdrawnLeads ?? 0, accent: "bg-gray-400" },
-  ];
+  {
+    label: "Total Leads",
+    value: dashboard?.totalLeads ?? 0,
+    accent: "bg-purple-500",
+    status: "",
+  },
+  {
+    label: "Cold",
+    value: dashboard?.coldLeads ?? 0,
+    accent: "bg-red-500",
+    status: "Cold",
+  },
+  {
+    label: "Warm",
+    value: dashboard?.warmLeads ?? 0,
+    accent: "bg-yellow-500",
+    status: "Warm",
+  },
+  {
+    label: "Hot",
+    value: dashboard?.hotLeads ?? 0,
+    accent: "bg-green-500",
+    status: "Hot",
+  },
+  {
+    label: "Converted",
+    value: dashboard?.convertedLeads ?? 0,
+    accent: "bg-blue-500",
+    status: "Converted",
+  },
+  {
+    label: "Withdrawn",
+    value: dashboard?.withdrawnLeads ?? 0,
+    accent: "bg-gray-400",
+    status: "Withdrawn",
+  },
+];
 
   const workflow = [
     "Inquiry captured by data entry",
@@ -96,8 +127,17 @@ const DashboardPage = () => {
       {/* Stat strip — one continuous row, evenly divided, no card gaps */}
       <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-emerald-100 bg-emerald-100 shadow-sm sm:grid-cols-3 xl:grid-cols-6">
         {stats.map((item) => (
-          <div key={item.label} className="flex flex-col justify-between bg-white p-5">
-            <div className="flex items-center gap-2">
+<div
+  key={item.label}
+  onClick={() =>
+    navigate(
+      item.status
+        ? `/students?status=${encodeURIComponent(item.status)}`
+        : "/students"
+    )
+  }
+  className="flex cursor-pointer flex-col justify-between bg-white p-5 transition hover:bg-emerald-50 hover:shadow-md"
+>            <div className="flex items-center gap-2">
               <span className={`h-2 w-2 rounded-full ${item.accent}`} />
               <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{item.label}</p>
             </div>
